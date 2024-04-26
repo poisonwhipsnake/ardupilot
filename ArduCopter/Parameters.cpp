@@ -869,6 +869,8 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
     AP_SUBGROUPINFO(smart_rtl, "SRTL_", 21, ParametersG2, AP_SmartRTL),
 #endif
 
+    AP_SUBGROUPINFO(wheel_encoder, "WENC", 22,ParametersG2, AP_WheelEncoder),
+
 #if AP_WINCH_ENABLED
     // 22 was AP_WheelEncoder
 
