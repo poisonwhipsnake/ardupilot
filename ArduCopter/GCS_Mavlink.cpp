@@ -282,7 +282,8 @@ void GCS_MAVLINK_Copter::send_pid_tuning()
         PID_TUNING_ROLL,
         PID_TUNING_PITCH,
         PID_TUNING_YAW,
-        PID_TUNING_ACCZ
+        PID_TUNING_ACCZ,
+        PID_TUNING_STEER,
     };
     for (uint8_t i=0; i<ARRAY_SIZE(axes); i++) {
         if (!(copter.g.gcs_pid_mask & (1<<(axes[i]-1)))) {
@@ -294,7 +295,8 @@ void GCS_MAVLINK_Copter::send_pid_tuning()
         const AP_PIDInfo *pid_info = nullptr;
         switch (axes[i]) {
         case PID_TUNING_ROLL:
-            pid_info = &copter.attitude_control->get_rate_roll_pid().get_pid_info();
+            //pid_info = &copter.attitude_control->get_rate_roll_pid().get_pid_info();
+            pid_info = &copter.g2.EncoderPosHold.get_pid_info();    
             break;
         case PID_TUNING_PITCH:
             pid_info = &copter.attitude_control->get_rate_pitch_pid().get_pid_info();
@@ -305,6 +307,8 @@ void GCS_MAVLINK_Copter::send_pid_tuning()
         case PID_TUNING_ACCZ:
             pid_info = &copter.pos_control->get_accel_z_pid().get_pid_info();
             break;
+        case PID_TUNING_STEER:
+            pid_info = &copter.g2.EncoderPosHold.get_pid_info();    
         default:
             continue;
         }

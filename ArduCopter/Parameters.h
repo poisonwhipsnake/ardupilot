@@ -706,6 +706,8 @@ public:
     AP_Float pldp_range_finder_minimum_m;
     AP_Float pldp_delay_s;
     AP_Float pldp_descent_speed_ms;
+
+    AC_PID EncoderPosHold{5000.0,  0.0,   0.0, 0 ,  10.0,   5.0,  5.0 ,  5.0  , 0.0};;
 };
 
 extern const AP_Param::Info        var_info[];
