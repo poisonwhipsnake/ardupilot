@@ -752,7 +752,7 @@ bool AP_MotorsMatrix::setup_quad_matrix(motor_frame_type frame_type)
         add_motors(motors, ARRAY_SIZE(motors));
         break;
     }
-    case MOTOR_FRAME_TYPE_Y4:
+    case MOTOR_FRAME_TYPE_Y4:{
         _frame_type_string = "Y4";
         // Y4 motor definition with right front CCW, left front CW
         static const AP_MotorsMatrix::MotorDefRaw motors[] {
@@ -763,6 +763,19 @@ bool AP_MotorsMatrix::setup_quad_matrix(motor_frame_type frame_type)
         };
         add_motors_raw(motors, ARRAY_SIZE(motors));
         break;
+    }
+    case MOTOR_FRAME_TYPE_SNAKE:{
+        _frame_type_string = "SNAKE";
+        // Snake motor definition 
+        static const AP_MotorsMatrix::MotorDefRaw motors[] {
+            {  0.0f,  1.000f, AP_MOTORS_MATRIX_YAW_FACTOR_CCW, 1 },
+            {  0.0f,  1.000f, AP_MOTORS_MATRIX_YAW_FACTOR_CW,  2 },
+            {  0.0f,  1.000f, 0.0f, 3 },
+            {  0.0f,  1.000f, 0.0f,  4 },
+        };
+        add_motors_raw(motors, ARRAY_SIZE(motors));
+        break;
+    }
     default:
         // quad frame class does not support this frame type
         return false;
