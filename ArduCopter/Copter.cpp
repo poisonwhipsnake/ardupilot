@@ -149,6 +149,7 @@ const AP_Scheduler::Task Copter::scheduler_tasks[] = {
 
     SCHED_TASK(rc_loop,              250,    130,  3),
     SCHED_TASK(throttle_loop,         50,     75,  6),
+    SCHED_TASK(update_wheel_encoder,   50,    200,  36),
 #if AP_FENCE_ENABLED
     SCHED_TASK(fence_check,           25,    100,  7),
 #endif
@@ -597,6 +598,9 @@ void Copter::ten_hz_logging_loop()
 // twentyfive_hz_logging - should be run at 25hz
 void Copter::twentyfive_hz_logging()
 {
+
+    g2.wheel_encoder.Log_Write();
+    
     if (should_log(MASK_LOG_ATTITUDE_FAST)) {
         Log_Write_EKF_POS();
     }

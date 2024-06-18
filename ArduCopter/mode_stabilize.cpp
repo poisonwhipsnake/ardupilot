@@ -8,6 +8,8 @@
 // should be called at 100hz or more
 void ModeStabilize::run()
 {
+    uint32_t now = micros();
+    
     // apply simple mode transform to pilot inputs
     update_simple_mode();
 
@@ -15,12 +17,37 @@ void ModeStabilize::run()
     float target_roll, target_pitch;
     get_pilot_desired_lean_angles(target_roll, target_pitch, copter.aparm.angle_max, copter.aparm.angle_max);
 
+    float dt = (now - last_run_time)/1000000.0f;
+    last_run_time = now;
     // get pilot's desired yaw rate
-    float target_yaw_rate = get_pilot_desired_yaw_rate(channel_yaw->norm_input_dz());
+    float input_yaw_rate =get_pilot_desired_yaw_rate(channel_yaw->norm_input_dz());
+    target_encoder_value = target_encoder_value + ((input_yaw_rate/100)*dt);
+
+    float target_yaw_rate = copter.g2.EncoderPosHold.update_all(target_encoder_value,copter.g2.wheel_encoder.get_distance(0),dt);
+
+    if ((now- last_message_time)/1000000 >1.0f ){
+        //send mavlink gcs text message
+
+        copter.gcs().send_text(MAV_SEVERITY_INFO, "EncoderPosHold: %f ",copter.g2.wheel_encoder.get_distance(0));
+        copter.gcs().send_text(MAV_SEVERITY_INFO, "TargetRate: %f ",input_yaw_rate);
+        copter.gcs().send_text(MAV_SEVERITY_INFO, "Dt: %f ", dt);
+        copter.gcs().send_text(MAV_SEVERITY_INFO, "Encoder Target: %f ",copter.g2.EncoderPosHold.get_pid_info().target);
+        copter.gcs().send_text(MAV_SEVERITY_INFO, "Encoder Actual: %f ", copter.g2.EncoderPosHold.get_pid_info().actual);
+        copter.gcs().send_text(MAV_SEVERITY_INFO, "Output Rate: %f ", target_yaw_rate);
+        last_message_time = now;
+
+    }
+
+  
+    //Run encoder to rate rate PID
+    //float target_yaw_rate = output of rate PID;
+    //float target_yaw_rate =get_pilot_desired_yaw_rate(channel_yaw->norm_input_dz());
 
     if (!motors->armed()) {
         // Motors should be Stopped
         motors->set_desired_spool_state(AP_Motors::DesiredSpoolState::SHUT_DOWN);
+        target_encoder_value = copter.g2.wheel_encoder.get_distance(0);
+
     } else if (copter.ap.throttle_zero
                || (copter.air_mode == AirMode::AIRMODE_ENABLED && motors->get_spool_state() == AP_Motors::SpoolState::SHUT_DOWN)) {
         // throttle_zero is never true in air mode, but the motors should be allowed to go through ground idle

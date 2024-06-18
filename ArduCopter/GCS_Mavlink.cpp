@@ -92,6 +92,18 @@ MAV_STATE GCS_MAVLINK_Copter::vehicle_system_status() const
     return MAV_STATE_ACTIVE;
 }
 
+void Copter::send_wheel_encoder_distance(const mavlink_channel_t chan)
+{
+    // send wheel encoder data using wheel_distance message
+    if (g2.wheel_encoder.num_sensors() > 0) {
+        double distances[MAVLINK_MSG_WHEEL_DISTANCE_FIELD_DISTANCE_LEN] {};
+        for (uint8_t i = 0; i < g2.wheel_encoder.num_sensors(); i++) {
+            distances[i] = wheel_encoder_last_distance_m[i];
+        }
+        mavlink_msg_wheel_distance_send(chan, 1000UL * AP_HAL::millis(), g2.wheel_encoder.num_sensors(), distances);
+    }
+}
+
 
 void GCS_MAVLINK_Copter::send_attitude_target()
 {
@@ -270,7 +282,8 @@ void GCS_MAVLINK_Copter::send_pid_tuning()
         PID_TUNING_ROLL,
         PID_TUNING_PITCH,
         PID_TUNING_YAW,
-        PID_TUNING_ACCZ
+        PID_TUNING_ACCZ,
+        PID_TUNING_STEER,
     };
     for (uint8_t i=0; i<ARRAY_SIZE(axes); i++) {
         if (!(copter.g.gcs_pid_mask & (1<<(axes[i]-1)))) {
@@ -282,7 +295,8 @@ void GCS_MAVLINK_Copter::send_pid_tuning()
         const AP_PIDInfo *pid_info = nullptr;
         switch (axes[i]) {
         case PID_TUNING_ROLL:
-            pid_info = &copter.attitude_control->get_rate_roll_pid().get_pid_info();
+            //pid_info = &copter.attitude_control->get_rate_roll_pid().get_pid_info();
+            pid_info = &copter.g2.EncoderPosHold.get_pid_info();    
             break;
         case PID_TUNING_PITCH:
             pid_info = &copter.attitude_control->get_rate_pitch_pid().get_pid_info();
@@ -293,6 +307,8 @@ void GCS_MAVLINK_Copter::send_pid_tuning()
         case PID_TUNING_ACCZ:
             pid_info = &copter.pos_control->get_accel_z_pid().get_pid_info();
             break;
+        case PID_TUNING_STEER:
+            pid_info = &copter.g2.EncoderPosHold.get_pid_info();    
         default:
             continue;
         }
@@ -356,6 +372,11 @@ bool GCS_MAVLINK_Copter::try_send_message(enum ap_message id)
     case MSG_WIND:
         CHECK_PAYLOAD_SIZE(WIND);
         send_wind();
+        break;
+
+    case MSG_WHEEL_DISTANCE:
+        CHECK_PAYLOAD_SIZE(WHEEL_DISTANCE);
+        copter.send_wheel_encoder_distance(chan);
         break;
 
     case MSG_SERVO_OUT:
@@ -544,6 +565,7 @@ static const ap_message STREAM_EXTRA3_msgs[] = {
     MSG_AHRS,
     MSG_SYSTEM_TIME,
     MSG_WIND,
+    MSG_WHEEL_DISTANCE,
 #if AP_RANGEFINDER_ENABLED
     MSG_RANGEFINDER,
 #endif

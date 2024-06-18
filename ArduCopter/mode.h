@@ -1562,6 +1562,10 @@ protected:
 
 private:
 
+    int32_t last_run_time;
+    int32_t last_message_time;
+    float target_encoder_value = 0.0f;
+
 };
 
 #if FRAME_CONFIG == HELI_FRAME

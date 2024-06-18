@@ -869,6 +869,8 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
     AP_SUBGROUPINFO(smart_rtl, "SRTL_", 21, ParametersG2, AP_SmartRTL),
 #endif
 
+    AP_SUBGROUPINFO(wheel_encoder, "WENC", 22,ParametersG2, AP_WheelEncoder),
+
 #if AP_WINCH_ENABLED
     // 22 was AP_WheelEncoder
 
@@ -1248,6 +1250,8 @@ const AP_Param::GroupInfo ParametersG2::var_info2[] = {
     // @Range: 0 10
     // @User: Advanced
     AP_GROUPINFO("FS_EKF_FILT", 8, ParametersG2, fs_ekf_filt_hz, FS_EKF_FILT_DEFAULT),
+
+    AP_SUBGROUPINFO(EncoderPosHold, "ENC_PID_", 9, ParametersG2, AC_PID),
 
     // ID 62 is reserved for the AP_SUBGROUPEXTENSION
 
