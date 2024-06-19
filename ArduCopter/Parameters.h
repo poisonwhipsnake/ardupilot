@@ -5,6 +5,8 @@
 #include <AP_Common/AP_Common.h>
 #include "RC_Channel.h"
 #include <AP_Proximity/AP_Proximity.h>
+#include <AP_WheelEncoder/AP_WheelEncoder.h>
+
 
 #include <AP_Gripper/AP_Gripper_config.h>
 #if AP_GRIPPER_ENABLED
@@ -571,6 +573,8 @@ public:
 #endif
 
     // wheel encoder and winch
+    AP_WheelEncoder wheel_encoder;
+
 #if AP_WINCH_ENABLED
     AP_Winch winch;
 #endif
@@ -702,6 +706,8 @@ public:
     AP_Float pldp_range_finder_minimum_m;
     AP_Float pldp_delay_s;
     AP_Float pldp_descent_speed_ms;
+
+    AC_PID EncoderPosHold{5000.0,  0.0,   0.0, 0 ,  10.0,   5.0,  5.0 ,  5.0  , 0.0};;
 };
 
 extern const AP_Param::Info        var_info[];

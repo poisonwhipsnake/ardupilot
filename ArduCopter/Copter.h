@@ -72,6 +72,7 @@
 #include <AC_PrecLand/AC_PrecLand_config.h>
 #include <AP_OpticalFlow/AP_OpticalFlow.h>
 #include <AP_Winch/AP_Winch_config.h>
+#include <AP_WheelEncoder/AP_WheelEncoder.h>
 
 // Configuration
 #include "defines.h"
@@ -260,6 +261,15 @@ private:
     AP_Int8 *flight_modes;
     const uint8_t num_flight_modes = 6;
 
+    // latest wheel encoder values
+    float wheel_encoder_last_distance_m[WHEELENCODER_MAX_INSTANCES];    // total distance recorded by wheel encoder (for reporting to GCS)
+    bool wheel_encoder_initialised;                                     // true once arrays below have been initialised to sensors initial values
+    float wheel_encoder_last_angle_rad[WHEELENCODER_MAX_INSTANCES];     // distance in radians at time of last update to EKF
+    uint32_t wheel_encoder_last_reading_ms[WHEELENCODER_MAX_INSTANCES]; // system time of last ping from each encoder
+    uint8_t wheel_encoder_last_index_sent;                              // index of the last wheel encoder sent to the EKF
+
+    void send_wheel_encoder_distance(mavlink_channel_t chan);
+
     struct RangeFinderState {
         bool enabled:1;
         bool alt_healthy:1; // true if we can trust the altitude from the rangefinder
@@ -275,6 +285,8 @@ private:
 
     // return rangefinder height interpolated using inertial altitude
     bool get_rangefinder_height_interpolated_cm(int32_t& ret) const;
+
+    void update_wheel_encoder();
 
     class SurfaceTracking {
     public:
