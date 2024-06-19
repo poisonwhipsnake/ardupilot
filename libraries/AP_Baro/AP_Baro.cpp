@@ -595,9 +595,9 @@ void AP_Baro::init(void)
     }
 
 //Encoder placeholder stuff
-        gcs().send_text(MAV_SEVERITY_INFO, "Baro: Encoder placeholder");
-        ADD_BACKEND(AP_Baro_Encoder::probe(*this,
-                                          std::move(hal.spi->get_device("encoder"))));
+    gcs().send_text(MAV_SEVERITY_INFO, "Baro: Encoder placeholder");
+    ADD_BACKEND(AP_Baro_Encoder::probe(*this,
+                                          std::move(hal.spi->get_device("as5047p"))));
 
 #if AP_SIM_BARO_ENABLED
     SITL::SIM *sitl = AP::sitl();

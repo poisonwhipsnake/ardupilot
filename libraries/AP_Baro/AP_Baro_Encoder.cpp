@@ -140,6 +140,8 @@ bool AP_Baro_Encoder::_init()
     _dev->transfer(buf, 2, &reply, 1);
     gcs().send_text(MAV_SEVERITY_INFO, "reply: %d", reply);
 
+    return true;
+
     // current the slave doesn't dive the MISO line low, so is always 0xFFFF as the reply
 
     hal.scheduler->delay(4);
@@ -379,6 +381,61 @@ void AP_Baro_Encoder::_update_and_wrap_accumulator(uint32_t *accum, uint32_t val
 
 void AP_Baro_Encoder::update()
 {
+    // read the setting1 reg
+    uint16_t address = 0x3FFF;
+    uint16_t rw = 1; // 1: read, 0: write
+    
+    uint16_t data = address  | (rw<<14);
+
+    // if data is odd, add parity bit
+    uint16_t parity_data = data;
+    bool parity = true;
+    while(parity_data) {
+        parity = !parity;
+        parity_data = parity_data & (parity_data - 1);
+    }
+    if(parity) {
+        data = data ;
+    }else{
+        data = data  | 1 <<15;
+    }
+    //gcs().send_text(MAV_SEVERITY_INFO, "updating %d", data);
+
+    // Initialize a character array to hold the binary representation
+    char binaryStr[16]; // 32 bits + null terminator
+   
+
+    // Loop through each bit of data, starting from the MSB
+    for(int i = 0; i <= 15; i++) {
+        // Check if the ith bit is set
+        binaryStr[i] = (data & (1 << (15-i))) ? '1' : '0';
+    }
+
+    // Now, binaryStr contains the binary representation of data
+    // Print the binary representation
+    gcs().send_text(MAV_SEVERITY_INFO, "updating2 %s", binaryStr);
+   
+   
+    uint8_t buf[2];
+    buf[0] = (data >> 8) & 0xFF;
+    buf[1] = data & 0xFF;
+
+
+
+    //bool SPIDevice::transfer(const uint8_t *send, uint32_t send_len, uint8_t *recv, uint32_t recv_len)
+    uint8_t reply[2];
+    _dev->transfer(buf, 2, reply, 0);
+
+    hal.scheduler->delay_microseconds(30);
+
+    _dev->transfer(buf, 0, reply, 2);
+
+    uint16_t reply2 = (reply[0] << 8) | reply[1];
+
+    reply2 = reply2 & 0x3FFF;
+
+    gcs().send_text(MAV_SEVERITY_INFO, "reply: %d", reply2);
+    /*
     uint32_t sD1, sD2;
     uint8_t d1count, d2count;
 
@@ -416,6 +473,7 @@ void AP_Baro_Encoder::update()
     case BARO_MS5837:
         _calculate_5837();
     }
+    */
 }
 
 // Calculate Temperature and compensated Pressure in real units (Celsius degrees*100, mbar*100).

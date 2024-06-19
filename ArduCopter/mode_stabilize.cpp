@@ -27,7 +27,7 @@ void ModeStabilize::run()
 
     if ((now- last_message_time)/1000000 >1.0f ){
         //send mavlink gcs text message
-
+        /*
         copter.gcs().send_text(MAV_SEVERITY_INFO, "EncoderPosHold: %f ",copter.g2.wheel_encoder.get_distance(0));
         copter.gcs().send_text(MAV_SEVERITY_INFO, "TargetRate: %f ",input_yaw_rate);
         copter.gcs().send_text(MAV_SEVERITY_INFO, "Dt: %f ", dt);
@@ -35,6 +35,7 @@ void ModeStabilize::run()
         copter.gcs().send_text(MAV_SEVERITY_INFO, "Encoder Actual: %f ", copter.g2.EncoderPosHold.get_pid_info().actual);
         copter.gcs().send_text(MAV_SEVERITY_INFO, "Output Rate: %f ", target_yaw_rate);
         last_message_time = now;
+        */
 
     }
 
