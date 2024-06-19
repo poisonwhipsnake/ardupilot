@@ -74,7 +74,7 @@ void AP_WheelEncoder_AS5047P::update(void)
         // calculate the angle
         float angle = encoder_value * 360.0f / 16384.0f;
 
-        gcs().send_text(MAV_SEVERITY_INFO, "Encoder Angle: %f", angle);
+        //gcs().send_text(MAV_SEVERITY_INFO, "Encoder Angle: %f", angle);
 
         // calculate the change in angle
         float delta_angle = angle - last_angle;

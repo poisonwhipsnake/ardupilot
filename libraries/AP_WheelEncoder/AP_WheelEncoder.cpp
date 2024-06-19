@@ -319,7 +319,8 @@ float AP_WheelEncoder::get_delta_angle(uint8_t instance) const
 float AP_WheelEncoder::get_distance(uint8_t instance) const
 {
     // for invalid instances return zero
-    return get_delta_angle(instance) * _wheel_radius[instance];
+    //return get_delta_angle(instance) * _wheel_radius[instance];
+    return state[instance].wheel_angle;
 }
 
 // get the instantaneous rate in radians/second
