@@ -46,10 +46,10 @@ void Copter::init_ardupilot()
     // Init RSSI
     rssi.init();
     
-    barometer.init();
 
     // setup telem slots with serial ports
     gcs().setup_uarts();
+
 
 #if OSD_ENABLED == ENABLED
     osd.init();
@@ -91,6 +91,9 @@ void Copter::init_ardupilot()
 
     // motors initialised so parameters can be sent
     ap.initialised_params = true;
+
+    // move after logging init
+    barometer.init();
 
 #if AP_RELAY_ENABLED
     relay.init();

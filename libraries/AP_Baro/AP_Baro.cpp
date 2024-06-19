@@ -31,6 +31,7 @@
 #include <AP_Vehicle/AP_Vehicle_Type.h>
 #include <AP_HAL/I2CDevice.h>
 
+#include "AP_Baro_Encoder.h"
 #include "AP_Baro_SITL.h"
 #include "AP_Baro_BMP085.h"
 #include "AP_Baro_BMP280.h"
@@ -593,6 +594,11 @@ void AP_Baro::init(void)
         sensors[i].bus_id.set(0);
     }
 
+//Encoder placeholder stuff
+        gcs().send_text(MAV_SEVERITY_INFO, "Baro: Encoder placeholder");
+        ADD_BACKEND(AP_Baro_Encoder::probe(*this,
+                                          std::move(hal.spi->get_device("encoder"))));
+
 #if AP_SIM_BARO_ENABLED
     SITL::SIM *sitl = AP::sitl();
     if (sitl == nullptr) {
@@ -643,6 +649,13 @@ void AP_Baro::init(void)
                                           std::move(GET_I2C_DEVICE(HAL_BARO_MS5611_I2C_BUS, HAL_BARO_MS5611_I2C_ADDR))));
 #endif
         break;
+
+
+
+
+
+
+
 
     case AP_BoardConfig::PX4_BOARD_PIXHAWK:
     case AP_BoardConfig::PX4_BOARD_PHMINI:
