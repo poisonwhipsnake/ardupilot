@@ -23,25 +23,16 @@
 class AP_WheelEncoder_AS5047P : public AP_WheelEncoder_Backend
 {
 public:
-    static AP_WheelEncoder_Backend *probe(AP_WheelEncoder &encoder,
-                                            AP_HAL::OwnPtr<AP_HAL::SPIDevice> dev);
 
+    // constructor
+    using AP_WheelEncoder_Backend::AP_WheelEncoder_Backend;
     // update state
     void update(void) override;
 
 private:
-    int32_t  _distance_count; // distance count as number of encoder ticks
-    uint32_t _total_count; // total number of encoder ticks
-
-    bool read_registers(uint8_t reg, uint8_t *data, uint8_t len);
-    bool write_register(uint8_t reg, uint8_t v);
-
-    void check_err_reg();
-
-    bool hardware_init();
-
-    bool init();
+    uint64_t last_update_ms = 0;
+    uint16_t last_encoder_value = 0;
+    float last_angle = 0.0f;
 
     AP_HAL::OwnPtr<AP_HAL::Device> _dev;
-    AP_HAL::Device::PeriodicHandle periodic_handle;
 };

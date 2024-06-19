@@ -30,6 +30,7 @@ class AP_WheelEncoder
 public:
     friend class AP_WheelEncoder_Backend;
     friend class AP_WheelEncoder_Quadrature;
+    friend class AP_WheelEncoder_AS5047P;
     friend class AP_WheelEncoder_SITL_Quadrature;
 
     AP_WheelEncoder(void);
@@ -46,6 +47,7 @@ public:
     enum WheelEncoder_Type : uint8_t {
         WheelEncoder_TYPE_NONE             =   0,
         WheelEncoder_TYPE_QUADRATURE       =   1,
+        WheelEncoder_TYPE_AS5047P          =   2,
         WheelEncoder_TYPE_SITL_QUADRATURE  =  10,
     };
 
@@ -54,6 +56,9 @@ public:
         uint8_t                instance;        // the instance number of this WheelEncoder
         int32_t                distance_count;  // cumulative number of forward + backwards events received from wheel encoder
         float                  distance;        // total distance measured in meters
+        float                  raw_angle;       // angle of the wheel before offset by zero_angle in degrees
+        float                  wheel_angle;     // angle of the wheel in degrees relative to the parameterised 0 position +-180 degrees
+        float                  zero_angle;      // parameterised zero angle in degrees
         uint32_t               total_count;     // total number of successful readings from sensor (used for sensor quality calcs)
         uint32_t               error_count;     // total number of errors reading from sensor (used for sensor quality calcs)
         uint32_t               last_reading_ms; // time of last reading
@@ -119,6 +124,7 @@ protected:
     AP_Vector3f _pos_offset[WHEELENCODER_MAX_INSTANCES];
     AP_Int8  _pina[WHEELENCODER_MAX_INSTANCES];
     AP_Int8  _pinb[WHEELENCODER_MAX_INSTANCES];
+    AP_Float _zero_angle[WHEELENCODER_MAX_INSTANCES];
 
     WheelEncoder_State state[WHEELENCODER_MAX_INSTANCES];
     AP_WheelEncoder_Backend *drivers[WHEELENCODER_MAX_INSTANCES];

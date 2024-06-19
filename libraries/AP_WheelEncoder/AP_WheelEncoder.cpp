@@ -16,6 +16,7 @@
 #include "AP_WheelEncoder.h"
 #include "WheelEncoder_Quadrature.h"
 #include "WheelEncoder_SITL_Quadrature.h"
+#include "WheelEncoder_AS5047P.h"
 #include <AP_Logger/AP_Logger.h>
 
 extern const AP_HAL::HAL& hal;
@@ -83,20 +84,29 @@ const AP_Param::GroupInfo AP_WheelEncoder::var_info[] = {
     // @User: Standard
     AP_GROUPINFO("_PINB",    5, AP_WheelEncoder, _pinb[0], -1),
 
+    // @Param: _ZEROOS
+    // @DisplayName: Zero Offset
+    // @Description: Angle in degrees as read by the encoder when the encoder is at the zero position 
+    // @Units: degrees
+    // @Range: 0 to 360.0
+    // @Increment: 0.01
+    // @User: Standard
+    AP_GROUPINFO("_ZEROOS",    6, AP_WheelEncoder, _zero_angle[0], 0.0f),
+
 #if WHEELENCODER_MAX_INSTANCES > 1
     // @Param: 2_TYPE
     // @DisplayName: Second WheelEncoder type
     // @Description: What type of WheelEncoder sensor is connected
     // @Values: 0:None,1:Quadrature,10:SITL Quadrature
     // @User: Standard
-    AP_GROUPINFO("2_TYPE",   6, AP_WheelEncoder, _type[1], 0),
+    AP_GROUPINFO("2_TYPE",   7, AP_WheelEncoder, _type[1], 0),
 
     // @Param: 2_CPR
     // @DisplayName: WheelEncoder 2 counts per revolution
     // @Description: WheelEncoder 2 counts per full revolution of the wheel
     // @Increment: 1
     // @User: Standard
-    AP_GROUPINFO("2_CPR",     7, AP_WheelEncoder, _counts_per_revolution[1], WHEELENCODER_CPR_DEFAULT),
+    AP_GROUPINFO("2_CPR",     8, AP_WheelEncoder, _counts_per_revolution[1], WHEELENCODER_CPR_DEFAULT),
 
     // @Param: 2_RADIUS
     // @DisplayName: Wheel2's radius
@@ -104,7 +114,7 @@ const AP_Param::GroupInfo AP_WheelEncoder::var_info[] = {
     // @Units: m
     // @Increment: 0.001
     // @User: Standard
-    AP_GROUPINFO("2_RADIUS", 8, AP_WheelEncoder, _wheel_radius[1], WHEELENCODER_RADIUS_DEFAULT),
+    AP_GROUPINFO("2_RADIUS", 9, AP_WheelEncoder, _wheel_radius[1], WHEELENCODER_RADIUS_DEFAULT),
 
     // @Param: 2_POS_X
     // @DisplayName: Wheel2's X position offset
@@ -129,21 +139,31 @@ const AP_Param::GroupInfo AP_WheelEncoder::var_info[] = {
     // @Range: -5 5
     // @Increment: 0.01
     // @User: Standard
-    AP_GROUPINFO("2_POS",    9, AP_WheelEncoder, _pos_offset[1], 0.0f),
+    AP_GROUPINFO("2_POS",    10, AP_WheelEncoder, _pos_offset[1], 0.0f),
 
     // @Param: 2_PINA
     // @DisplayName: Second Encoder Input Pin A
     // @Description: Second Encoder Input Pin A
     // @Values: -1:Disabled,50:AUX1,51:AUX2,52:AUX3,53:AUX4,54:AUX5,55:AUX6
     // @User: Standard
-    AP_GROUPINFO("2_PINA",   10, AP_WheelEncoder, _pina[1], 53),
+    AP_GROUPINFO("2_PINA",   11, AP_WheelEncoder, _pina[1], 53),
 
     // @Param: 2_PINB
     // @DisplayName: Second Encoder Input Pin B
     // @Description: Second Encoder Input Pin B
     // @Values: -1:Disabled,50:AUX1,51:AUX2,52:AUX3,53:AUX4,54:AUX5,55:AUX6
     // @User: Standard
-    AP_GROUPINFO("2_PINB",   11, AP_WheelEncoder, _pinb[1], 52),
+    AP_GROUPINFO("2_PINB",   12, AP_WheelEncoder, _pinb[1], 52),
+
+    // @Param: _ZEROOS
+    // @DisplayName: Zero Offset
+    // @Description: Angle in degrees as read by the encoder when the encoder is at the zero position 
+    // @Units: degrees
+    // @Range: 0 to 360.0
+    // @Increment: 0.01
+    // @User: Standard
+    AP_GROUPINFO("2_ZEROOS",    13, AP_WheelEncoder, _zero_angle[1], 0.0f),
+
 #endif
 
     AP_GROUPEND
@@ -177,6 +197,13 @@ void AP_WheelEncoder::init(void)
             drivers[i] = new AP_WheelEncoder_SITL_Quadrature(*this, i, state[i]);
 #endif
             break;
+        
+        case WheelEncoder_TYPE_AS5047P:
+#if CONFIG_HAL_BOARD == HAL_BOARD_CHIBIOS
+            drivers[i] = new AP_WheelEncoder_AS5047P(*this, i, state[i]);
+#endif
+            break;
+
             
         case WheelEncoder_TYPE_NONE:
             break;
