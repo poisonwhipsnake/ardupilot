@@ -262,9 +262,10 @@ private:
     const uint8_t num_flight_modes = 6;
 
     // latest wheel encoder values
-    float wheel_encoder_last_distance_m[WHEELENCODER_MAX_INSTANCES];    // total distance recorded by wheel encoder (for reporting to GCS)
+    float wheel_encoder_wheel_angle[WHEELENCODER_MAX_INSTANCES];    // total distance recorded by wheel encoder (for reporting to GCS)
     bool wheel_encoder_initialised;                                     // true once arrays below have been initialised to sensors initial values
     float wheel_encoder_last_angle_rad[WHEELENCODER_MAX_INSTANCES];     // distance in radians at time of last update to EKF
+    float wheel_encoder_raw_angle[WHEELENCODER_MAX_INSTANCES];      // distance in radians at time of last update to EKF
     uint32_t wheel_encoder_last_reading_ms[WHEELENCODER_MAX_INSTANCES]; // system time of last ping from each encoder
     uint8_t wheel_encoder_last_index_sent;                              // index of the last wheel encoder sent to the EKF
 

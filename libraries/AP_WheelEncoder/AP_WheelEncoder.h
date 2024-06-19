@@ -55,10 +55,10 @@ public:
     struct WheelEncoder_State {
         uint8_t                instance;        // the instance number of this WheelEncoder
         int32_t                distance_count;  // cumulative number of forward + backwards events received from wheel encoder
+        int8_t                 previousQuadrant; // previous quadrant of the wheel encoder
         float                  distance;        // total distance measured in meters
         float                  raw_angle;       // angle of the wheel before offset by zero_angle in degrees
         float                  wheel_angle;     // angle of the wheel in degrees relative to the parameterised 0 position +-180 degrees
-        float                  zero_angle;      // parameterised zero angle in degrees
         uint32_t               total_count;     // total number of successful readings from sensor (used for sensor quality calcs)
         uint32_t               error_count;     // total number of errors reading from sensor (used for sensor quality calcs)
         uint32_t               last_reading_ms; // time of last reading
@@ -99,6 +99,10 @@ public:
     // get the total distance traveled in meters
     float get_distance(uint8_t instance) const;
 
+    float get_wheel_angle(uint8_t instance) const;
+
+    float get_raw_angle(uint8_t instance) const;
+
     // get the instantaneous rate in radians/second
     float get_rate(uint8_t instance) const;
 
@@ -125,6 +129,7 @@ protected:
     AP_Int8  _pina[WHEELENCODER_MAX_INSTANCES];
     AP_Int8  _pinb[WHEELENCODER_MAX_INSTANCES];
     AP_Float _zero_angle[WHEELENCODER_MAX_INSTANCES];
+    AP_Int8 _invert[WHEELENCODER_MAX_INSTANCES];
 
     WheelEncoder_State state[WHEELENCODER_MAX_INSTANCES];
     AP_WheelEncoder_Backend *drivers[WHEELENCODER_MAX_INSTANCES];

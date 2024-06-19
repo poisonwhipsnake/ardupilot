@@ -93,20 +93,22 @@ const AP_Param::GroupInfo AP_WheelEncoder::var_info[] = {
     // @User: Standard
     AP_GROUPINFO("_ZEROOS",    6, AP_WheelEncoder, _zero_angle[0], 0.0f),
 
+    AP_GROUPINFO("_INVERT", 7, AP_WheelEncoder, _invert[0], 0),
+
 #if WHEELENCODER_MAX_INSTANCES > 1
     // @Param: 2_TYPE
     // @DisplayName: Second WheelEncoder type
     // @Description: What type of WheelEncoder sensor is connected
     // @Values: 0:None,1:Quadrature,10:SITL Quadrature
     // @User: Standard
-    AP_GROUPINFO("2_TYPE",   7, AP_WheelEncoder, _type[1], 0),
+    AP_GROUPINFO("2_TYPE",   8, AP_WheelEncoder, _type[1], 0),
 
     // @Param: 2_CPR
     // @DisplayName: WheelEncoder 2 counts per revolution
     // @Description: WheelEncoder 2 counts per full revolution of the wheel
     // @Increment: 1
     // @User: Standard
-    AP_GROUPINFO("2_CPR",     8, AP_WheelEncoder, _counts_per_revolution[1], WHEELENCODER_CPR_DEFAULT),
+    AP_GROUPINFO("2_CPR",     9, AP_WheelEncoder, _counts_per_revolution[1], WHEELENCODER_CPR_DEFAULT),
 
     // @Param: 2_RADIUS
     // @DisplayName: Wheel2's radius
@@ -114,7 +116,7 @@ const AP_Param::GroupInfo AP_WheelEncoder::var_info[] = {
     // @Units: m
     // @Increment: 0.001
     // @User: Standard
-    AP_GROUPINFO("2_RADIUS", 9, AP_WheelEncoder, _wheel_radius[1], WHEELENCODER_RADIUS_DEFAULT),
+    AP_GROUPINFO("2_RADIUS", 10, AP_WheelEncoder, _wheel_radius[1], WHEELENCODER_RADIUS_DEFAULT),
 
     // @Param: 2_POS_X
     // @DisplayName: Wheel2's X position offset
@@ -139,21 +141,21 @@ const AP_Param::GroupInfo AP_WheelEncoder::var_info[] = {
     // @Range: -5 5
     // @Increment: 0.01
     // @User: Standard
-    AP_GROUPINFO("2_POS",    10, AP_WheelEncoder, _pos_offset[1], 0.0f),
+    AP_GROUPINFO("2_POS",    11, AP_WheelEncoder, _pos_offset[1], 0.0f),
 
     // @Param: 2_PINA
     // @DisplayName: Second Encoder Input Pin A
     // @Description: Second Encoder Input Pin A
     // @Values: -1:Disabled,50:AUX1,51:AUX2,52:AUX3,53:AUX4,54:AUX5,55:AUX6
     // @User: Standard
-    AP_GROUPINFO("2_PINA",   11, AP_WheelEncoder, _pina[1], 53),
+    AP_GROUPINFO("2_PINA",   12, AP_WheelEncoder, _pina[1], 53),
 
     // @Param: 2_PINB
     // @DisplayName: Second Encoder Input Pin B
     // @Description: Second Encoder Input Pin B
     // @Values: -1:Disabled,50:AUX1,51:AUX2,52:AUX3,53:AUX4,54:AUX5,55:AUX6
     // @User: Standard
-    AP_GROUPINFO("2_PINB",   12, AP_WheelEncoder, _pinb[1], 52),
+    AP_GROUPINFO("2_PINB",   13, AP_WheelEncoder, _pinb[1], 52),
 
     // @Param: _ZEROOS
     // @DisplayName: Zero Offset
@@ -162,7 +164,9 @@ const AP_Param::GroupInfo AP_WheelEncoder::var_info[] = {
     // @Range: 0 to 360.0
     // @Increment: 0.01
     // @User: Standard
-    AP_GROUPINFO("2_ZEROOS",    13, AP_WheelEncoder, _zero_angle[1], 0.0f),
+    AP_GROUPINFO("2_ZEROOS",    14, AP_WheelEncoder, _zero_angle[1], 0.0f),
+
+    AP_GROUPINFO("2_INVERT", 15, AP_WheelEncoder, _invert[1], 0),
 
 #endif
 
@@ -224,6 +228,31 @@ void AP_WheelEncoder::update(void)
     for (uint8_t i=0; i<num_instances; i++) {
         if (drivers[i] != nullptr && _type[i] != WheelEncoder_TYPE_NONE) {
             drivers[i]->update();
+            float wheelAngle = state[i].raw_angle - _zero_angle[i];
+            if(wheelAngle > 180.0f) {
+                wheelAngle -= 360.0f;
+            } else if(wheelAngle < -180.0f) {
+                wheelAngle += 360.0f;
+            }
+            int8_t quadrant =0;
+            if (wheelAngle > 90.0f) {
+                quadrant = 1;
+            } else if (wheelAngle < -90.0f) {
+                quadrant = -1;
+            }
+            if (quadrant != state[i].previousQuadrant) {
+                if(state[i].previousQuadrant == 0 || quadrant == 0){
+                    state[i].previousQuadrant = quadrant;
+                } else {
+                    state[i].distance_count += state[i].previousQuadrant;
+                    state[i].previousQuadrant = quadrant;
+                }
+            }
+            state[i].wheel_angle = wheelAngle + (360.0f * state[i].distance_count);
+
+            if (_invert[i] >0 ) {
+                state[i].wheel_angle = -state[i].wheel_angle;
+            }
         }
     }
 }
@@ -321,6 +350,24 @@ float AP_WheelEncoder::get_distance(uint8_t instance) const
     // for invalid instances return zero
     //return get_delta_angle(instance) * _wheel_radius[instance];
     return state[instance].wheel_angle;
+}
+
+float AP_WheelEncoder::get_wheel_angle(uint8_t instance) const
+{
+    // for invalid instances return zero
+    if (instance >= WHEELENCODER_MAX_INSTANCES) {
+        return 0.0f;
+    }
+    return state[instance].wheel_angle;
+}
+
+float AP_WheelEncoder::get_raw_angle(uint8_t instance) const
+{
+    // for invalid instances return zero
+    if (instance >= WHEELENCODER_MAX_INSTANCES) {
+        return 0.0f;
+    }
+    return state[instance].raw_angle;
 }
 
 // get the instantaneous rate in radians/second

@@ -186,7 +186,8 @@ void Copter::update_wheel_encoder()
 
     // save cumulative distances at current time (in meters) for reporting to GCS
     for (uint8_t i = 0; i < g2.wheel_encoder.num_sensors(); i++) {
-        wheel_encoder_last_distance_m[i] = g2.wheel_encoder.get_distance(i);
+        wheel_encoder_wheel_angle[i] = g2.wheel_encoder.get_wheel_angle(i);
+        wheel_encoder_raw_angle[i] = g2.wheel_encoder.get_raw_angle(i);
     }
 
     // send wheel encoder delta angle and delta time to EKF

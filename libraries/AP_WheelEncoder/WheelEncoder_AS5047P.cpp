@@ -88,7 +88,6 @@ void AP_WheelEncoder_AS5047P::update(void)
 
         // update the state
         _state.raw_angle = angle;
-        _state.wheel_angle += delta_angle;
 
         // save the last angle
         last_angle = angle;
