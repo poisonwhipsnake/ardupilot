@@ -287,6 +287,8 @@ void AP_WheelEncoder::update(void)
             }
         }
     }
+
+    gcs().send_message(MSG_WHEEL_DISTANCE);
 }
 
 #if HAL_LOGGING_ENABLED

@@ -566,7 +566,6 @@ static const ap_message STREAM_EXTRA3_msgs[] = {
     MSG_AHRS,
     MSG_SYSTEM_TIME,
     MSG_WIND,
-    MSG_WHEEL_DISTANCE,
 #if AP_RANGEFINDER_ENABLED
     MSG_RANGEFINDER,
 #endif
