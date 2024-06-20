@@ -22,7 +22,7 @@
 
 extern const AP_HAL::HAL& hal;
 
-void AP_WheelEncoder_SITL_Quadrature::update(void)
+void AP_WheelEncoder_SITL_Quadrature::update(float unused, float unused2)
 {
     const auto *_sitl = AP::sitl();
 

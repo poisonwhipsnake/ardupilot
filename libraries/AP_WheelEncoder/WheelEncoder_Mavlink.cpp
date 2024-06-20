@@ -11,27 +11,20 @@
 
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
-#pragma once
+*/
 
-#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
+#include <AP_HAL/AP_HAL.h>
 
-#include "WheelEncoder_Backend.h"
-#include <AP_Math/AP_Math.h>
-#include <SITL/SITL.h>
+#include "WheelEncoder_Mavlink.h"
 
-class AP_WheelEncoder_SITL_Quadrature : public AP_WheelEncoder_Backend
-{
-public:
-    // constructor
-    using AP_WheelEncoder_Backend::AP_WheelEncoder_Backend;
+#include <GCS_MAVLink/GCS.h>
 
-    // update state
-    void update(float unused, float unused2) override;
+extern const AP_HAL::HAL& hal;
 
-private:
-    int32_t  _distance_count; // distance count as number of encoder ticks
-    uint32_t _total_count; // total number of encoder ticks
-};
 
-#endif // CONFIG_HAL_BOARD
+void AP_WheelEncoder_Mavlink::update(float wheelAngle, float rawAngle){
+        last_angle = wheelAngle;
+        // update the state
+        _state.wheel_angle = wheelAngle;
+        _state.raw_angle = rawAngle;
+}

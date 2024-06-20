@@ -28,7 +28,7 @@ public:
     virtual ~AP_WheelEncoder_Backend(void) {}
 
     // update the state structure. All backends must implement this.
-    virtual void update() = 0;
+    virtual void update(float wheelAngle, float rawAngle) = 0;
 
 protected:
 

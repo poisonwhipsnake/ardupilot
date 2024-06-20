@@ -27,7 +27,7 @@ public:
     // constructor
     using AP_WheelEncoder_Backend::AP_WheelEncoder_Backend;
     // update state
-    void update(void) override;
+    void update(float unused, float unused2) override;
 
 private:
     uint64_t last_update_ms = 0;

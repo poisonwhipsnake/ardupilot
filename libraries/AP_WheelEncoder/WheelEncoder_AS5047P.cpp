@@ -22,7 +22,7 @@
 extern const AP_HAL::HAL& hal;
 
 
-void AP_WheelEncoder_AS5047P::update(void)
+void AP_WheelEncoder_AS5047P::update(float unused, float unused2)
 {
     if (!_dev) {
         _dev = std::move(hal.spi->get_device("as5047p"));

@@ -88,6 +88,7 @@ private:
 #endif
 
     void send_wind() const;
+    void handle_wheel_distance(const mavlink_message_t &msg);
 
 #if HAL_HIGH_LATENCY2_ENABLED
     int16_t high_latency_target_altitude() const override;

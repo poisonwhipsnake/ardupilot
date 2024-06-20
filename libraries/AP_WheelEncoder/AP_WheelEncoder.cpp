@@ -17,7 +17,9 @@
 #include "WheelEncoder_Quadrature.h"
 #include "WheelEncoder_SITL_Quadrature.h"
 #include "WheelEncoder_AS5047P.h"
+#include "WheelEncoder_Mavlink.h"
 #include <AP_Logger/AP_Logger.h>
+#include <GCS_MAVLink/GCS.h>
 
 extern const AP_HAL::HAL& hal;
 
@@ -95,20 +97,24 @@ const AP_Param::GroupInfo AP_WheelEncoder::var_info[] = {
 
     AP_GROUPINFO("_INVERT", 7, AP_WheelEncoder, _invert[0], 0),
 
+    AP_GROUPINFO("_SYSID", 8, AP_WheelEncoder, _sysid[0], 0),
+
+    AP_GROUPINFO("_DEVID", 9, AP_WheelEncoder, _devid[0], 0),
+
 #if WHEELENCODER_MAX_INSTANCES > 1
     // @Param: 2_TYPE
     // @DisplayName: Second WheelEncoder type
     // @Description: What type of WheelEncoder sensor is connected
     // @Values: 0:None,1:Quadrature,10:SITL Quadrature
     // @User: Standard
-    AP_GROUPINFO("2_TYPE",   8, AP_WheelEncoder, _type[1], 0),
+    AP_GROUPINFO("2_TYPE",   10, AP_WheelEncoder, _type[1], 0),
 
     // @Param: 2_CPR
     // @DisplayName: WheelEncoder 2 counts per revolution
     // @Description: WheelEncoder 2 counts per full revolution of the wheel
     // @Increment: 1
     // @User: Standard
-    AP_GROUPINFO("2_CPR",     9, AP_WheelEncoder, _counts_per_revolution[1], WHEELENCODER_CPR_DEFAULT),
+    AP_GROUPINFO("2_CPR",     11, AP_WheelEncoder, _counts_per_revolution[1], WHEELENCODER_CPR_DEFAULT),
 
     // @Param: 2_RADIUS
     // @DisplayName: Wheel2's radius
@@ -116,7 +122,7 @@ const AP_Param::GroupInfo AP_WheelEncoder::var_info[] = {
     // @Units: m
     // @Increment: 0.001
     // @User: Standard
-    AP_GROUPINFO("2_RADIUS", 10, AP_WheelEncoder, _wheel_radius[1], WHEELENCODER_RADIUS_DEFAULT),
+    AP_GROUPINFO("2_RADIUS", 12, AP_WheelEncoder, _wheel_radius[1], WHEELENCODER_RADIUS_DEFAULT),
 
     // @Param: 2_POS_X
     // @DisplayName: Wheel2's X position offset
@@ -141,21 +147,21 @@ const AP_Param::GroupInfo AP_WheelEncoder::var_info[] = {
     // @Range: -5 5
     // @Increment: 0.01
     // @User: Standard
-    AP_GROUPINFO("2_POS",    11, AP_WheelEncoder, _pos_offset[1], 0.0f),
+    AP_GROUPINFO("2_POS",    13, AP_WheelEncoder, _pos_offset[1], 0.0f),
 
     // @Param: 2_PINA
     // @DisplayName: Second Encoder Input Pin A
     // @Description: Second Encoder Input Pin A
     // @Values: -1:Disabled,50:AUX1,51:AUX2,52:AUX3,53:AUX4,54:AUX5,55:AUX6
     // @User: Standard
-    AP_GROUPINFO("2_PINA",   12, AP_WheelEncoder, _pina[1], 53),
+    AP_GROUPINFO("2_PINA",   14, AP_WheelEncoder, _pina[1], 53),
 
     // @Param: 2_PINB
     // @DisplayName: Second Encoder Input Pin B
     // @Description: Second Encoder Input Pin B
     // @Values: -1:Disabled,50:AUX1,51:AUX2,52:AUX3,53:AUX4,54:AUX5,55:AUX6
     // @User: Standard
-    AP_GROUPINFO("2_PINB",   13, AP_WheelEncoder, _pinb[1], 52),
+    AP_GROUPINFO("2_PINB",   15, AP_WheelEncoder, _pinb[1], 52),
 
     // @Param: _ZEROOS
     // @DisplayName: Zero Offset
@@ -164,9 +170,13 @@ const AP_Param::GroupInfo AP_WheelEncoder::var_info[] = {
     // @Range: 0 to 360.0
     // @Increment: 0.01
     // @User: Standard
-    AP_GROUPINFO("2_ZEROOS",    14, AP_WheelEncoder, _zero_angle[1], 0.0f),
+    AP_GROUPINFO("2_ZEROOS", 16, AP_WheelEncoder, _zero_angle[1], 0.0f),
 
-    AP_GROUPINFO("2_INVERT", 15, AP_WheelEncoder, _invert[1], 0),
+    AP_GROUPINFO("2_INVERT", 17, AP_WheelEncoder, _invert[1], 0),
+
+    AP_GROUPINFO("2_SYSID", 18, AP_WheelEncoder, _sysid[1], 0),
+
+    AP_GROUPINFO("2_DEVID", 19, AP_WheelEncoder, _devid[1], 0),
 
 #endif
 
@@ -207,6 +217,10 @@ void AP_WheelEncoder::init(void)
             drivers[i] = new AP_WheelEncoder_AS5047P(*this, i, state[i]);
 #endif
             break;
+        
+        case WheelEncoder_TYPE_Mavlink:
+            drivers[i] = new AP_WheelEncoder_Mavlink(*this, i, state[i]);
+            break;
 
             
         case WheelEncoder_TYPE_NONE:
@@ -222,12 +236,30 @@ void AP_WheelEncoder::init(void)
     }
 }
 
+void AP_WheelEncoder::updateMavlinkWheelEncoders(double distances[], int message_id)
+{
+    //gcs().send_text(MAV_SEVERITY_INFO, "WheelEncoder: updateMavlinkWheelEncoders ");
+    //gcs().send_text(MAV_SEVERITY_INFO, "WheelEncoder: message_id %d , %f", message_id, distances[0]);
+
+
+
+    for (uint8_t i=0; i<num_instances; i++) {
+        if (drivers[i] != nullptr && _type[i] == WheelEncoder_TYPE_Mavlink) {
+            if (message_id == _sysid[i]) {
+                drivers[i]->update(distances[2*_devid[i]],distances[2*_devid[i]+1]);
+            }
+        }
+    }
+
+
+}
+
 // update WheelEncoder state for all instances. This should be called by main loop
 void AP_WheelEncoder::update(void)
 {
     for (uint8_t i=0; i<num_instances; i++) {
-        if (drivers[i] != nullptr && _type[i] != WheelEncoder_TYPE_NONE) {
-            drivers[i]->update();
+        if (drivers[i] != nullptr && _type[i] != WheelEncoder_TYPE_NONE && _type[i] != WheelEncoder_TYPE_Mavlink) {
+            drivers[i]->update(0.0f, 0.0f);
             float wheelAngle = state[i].raw_angle - _zero_angle[i];
             if(wheelAngle > 180.0f) {
                 wheelAngle -= 360.0f;

@@ -1533,13 +1533,33 @@ void GCS_MAVLINK_Copter::handle_message(const mavlink_message_t &msg)
         copter.g2.toy_mode.handle_message(msg);
         break;
 #endif
-        
+
+    case MAVLINK_MSG_ID_WHEEL_DISTANCE:
+    {
+        handle_wheel_distance(msg);
+        break;
+    }
     default:
         GCS_MAVLINK::handle_message(msg);
         break;
     }     // end switch
 } // end handle mavlink
 
+
+void GCS_MAVLINK_Copter::handle_wheel_distance(const mavlink_message_t &msg)
+{
+    mavlink_wheel_distance_t packet;
+    uint8_t sender_sysid = msg.sysid;
+    mavlink_msg_wheel_distance_decode(&msg, &packet);
+
+
+    // check for valid wheel distance data
+    if (packet.count > 0 && packet.count <= MAVLINK_MSG_WHEEL_DISTANCE_FIELD_DISTANCE_LEN) {
+        // store wheel distance data
+        copter.g2.wheel_encoder.updateMavlinkWheelEncoders(packet.distance,sender_sysid);
+        
+    }
+}
 
 MAV_RESULT GCS_MAVLINK_Copter::handle_flight_termination(const mavlink_command_int_t &packet) {
 #if ADVANCED_FAILSAFE == ENABLED

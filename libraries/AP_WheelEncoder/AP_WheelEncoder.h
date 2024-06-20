@@ -31,6 +31,7 @@ public:
     friend class AP_WheelEncoder_Backend;
     friend class AP_WheelEncoder_Quadrature;
     friend class AP_WheelEncoder_AS5047P;
+    friend class AP_WheelEncoder_Mavlink;
     friend class AP_WheelEncoder_SITL_Quadrature;
 
     AP_WheelEncoder(void);
@@ -48,6 +49,7 @@ public:
         WheelEncoder_TYPE_NONE             =   0,
         WheelEncoder_TYPE_QUADRATURE       =   1,
         WheelEncoder_TYPE_AS5047P          =   2,
+        WheelEncoder_TYPE_Mavlink          =   3,
         WheelEncoder_TYPE_SITL_QUADRATURE  =  10,
     };
 
@@ -71,6 +73,8 @@ public:
 
     // update state of all sensors. Should be called from main loop
     void update(void);
+
+    void updateMavlinkWheelEncoders(double distances[], int message_id);
 
     // log data to logger
     void Log_Write() const;
@@ -130,6 +134,8 @@ protected:
     AP_Int8  _pinb[WHEELENCODER_MAX_INSTANCES];
     AP_Float _zero_angle[WHEELENCODER_MAX_INSTANCES];
     AP_Int8 _invert[WHEELENCODER_MAX_INSTANCES];
+    AP_Int8 _sysid[WHEELENCODER_MAX_INSTANCES];
+    AP_Int8 _devid[WHEELENCODER_MAX_INSTANCES];
 
     WheelEncoder_State state[WHEELENCODER_MAX_INSTANCES];
     AP_WheelEncoder_Backend *drivers[WHEELENCODER_MAX_INSTANCES];

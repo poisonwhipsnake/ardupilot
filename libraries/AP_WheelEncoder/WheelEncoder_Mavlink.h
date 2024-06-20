@@ -14,24 +14,24 @@
  */
 #pragma once
 
-#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
+#include <AP_HAL/AP_HAL.h> 
+
 
 #include "WheelEncoder_Backend.h"
 #include <AP_Math/AP_Math.h>
-#include <SITL/SITL.h>
 
-class AP_WheelEncoder_SITL_Quadrature : public AP_WheelEncoder_Backend
+class AP_WheelEncoder_Mavlink : public AP_WheelEncoder_Backend
 {
 public:
+
     // constructor
     using AP_WheelEncoder_Backend::AP_WheelEncoder_Backend;
-
     // update state
-    void update(float unused, float unused2) override;
+    void update(float wheelAngle, float rawAngle) override;
 
 private:
-    int32_t  _distance_count; // distance count as number of encoder ticks
-    uint32_t _total_count; // total number of encoder ticks
-};
+    uint64_t last_update_ms = 0;
+    uint16_t last_encoder_value = 0;
+    float last_angle = 0.0f;
 
-#endif // CONFIG_HAL_BOARD
+};
