@@ -26,7 +26,7 @@ public:
     using AP_WheelEncoder_Backend::AP_WheelEncoder_Backend;
 
     // update state
-    void update(float unused, float unused2) override;
+    void update(float unused) override;
 
 private:
 

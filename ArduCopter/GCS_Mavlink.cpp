@@ -98,8 +98,7 @@ void Copter::send_wheel_encoder_distance(const mavlink_channel_t chan)
     if (g2.wheel_encoder.num_sensors() > 0) {
         double distances[MAVLINK_MSG_WHEEL_DISTANCE_FIELD_DISTANCE_LEN] {};
         for (uint8_t i = 0; i < g2.wheel_encoder.num_sensors(); i++) {
-            distances[2*i] = wheel_encoder_wheel_angle[i];
-            distances[2*i + 1] = wheel_encoder_raw_angle[i];
+            distances[i] = wheel_encoder_wheel_angle[i];
         }
         mavlink_msg_wheel_distance_send(chan, 1000UL * AP_HAL::millis(), g2.wheel_encoder.num_sensors(), distances);
     }

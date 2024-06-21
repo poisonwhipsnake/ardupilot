@@ -22,9 +22,9 @@
 extern const AP_HAL::HAL& hal;
 
 
-void AP_WheelEncoder_Mavlink::update(float wheelAngle, float rawAngle){
+void AP_WheelEncoder_Mavlink::update(float wheelAngle){
         last_angle = wheelAngle;
         // update the state
         _state.wheel_angle = wheelAngle;
-        _state.raw_angle = rawAngle;
+        _state.raw_angle = wheelAngle;
 }

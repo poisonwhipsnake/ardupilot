@@ -57,7 +57,7 @@ void AP_WheelEncoder_Quadrature::update_pin(uint8_t &pin,
     }
 }
 
-void AP_WheelEncoder_Quadrature::update(float unused, float unused2)
+void AP_WheelEncoder_Quadrature::update(float unused)
 {
     update_pin(last_pin_a, get_pin_a(), last_pin_a_value);
     update_pin(last_pin_b, get_pin_b(), last_pin_b_value);

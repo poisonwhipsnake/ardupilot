@@ -246,7 +246,7 @@ void AP_WheelEncoder::updateMavlinkWheelEncoders(double distances[], int message
     for (uint8_t i=0; i<num_instances; i++) {
         if (drivers[i] != nullptr && _type[i] == WheelEncoder_TYPE_Mavlink) {
             if (message_id == _sysid[i]) {
-                drivers[i]->update(distances[2*_devid[i]],distances[2*_devid[i]+1]);
+                drivers[i]->update(distances[_devid[i]]);
             }
         }
     }
@@ -259,7 +259,7 @@ void AP_WheelEncoder::update(void)
 {
     for (uint8_t i=0; i<num_instances; i++) {
         if (drivers[i] != nullptr && _type[i] != WheelEncoder_TYPE_NONE && _type[i] != WheelEncoder_TYPE_Mavlink) {
-            drivers[i]->update(0.0f, 0.0f);
+            drivers[i]->update(0.0f);
             float wheelAngle = state[i].raw_angle - _zero_angle[i];
             if(wheelAngle > 180.0f) {
                 wheelAngle -= 360.0f;
