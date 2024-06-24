@@ -74,7 +74,7 @@ public:
     // update state of all sensors. Should be called from main loop
     void update(void);
 
-    void updateMavlinkWheelEncoders(double distances[], int message_id);
+    void updateMavlinkWheelEncoders(float distances[], int message_id);
 
     // log data to logger
     void Log_Write() const;

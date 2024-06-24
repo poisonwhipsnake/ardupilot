@@ -236,7 +236,7 @@ void AP_WheelEncoder::init(void)
     }
 }
 
-void AP_WheelEncoder::updateMavlinkWheelEncoders(double distances[], int message_id)
+void AP_WheelEncoder::updateMavlinkWheelEncoders(float distances[], int message_id)
 {
     //gcs().send_text(MAV_SEVERITY_INFO, "WheelEncoder: updateMavlinkWheelEncoders ");
     //gcs().send_text(MAV_SEVERITY_INFO, "WheelEncoder: message_id %d , %f", message_id, distances[0]);

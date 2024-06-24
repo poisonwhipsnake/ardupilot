@@ -96,11 +96,11 @@ void Copter::send_wheel_encoder_distance(const mavlink_channel_t chan)
 {
     // send wheel encoder data using wheel_distance message
     if (g2.wheel_encoder.num_sensors() > 0) {
-        double distances[MAVLINK_MSG_WHEEL_DISTANCE_FIELD_DISTANCE_LEN] {};
+        float distances[MAVLINK_MSG_WHEEL_DISTANCE_FIELD_DISTANCE_LEN] {};
         for (uint8_t i = 0; i < g2.wheel_encoder.num_sensors(); i++) {
             distances[i] = wheel_encoder_wheel_angle[i];
         }
-        mavlink_msg_wheel_distance_send(chan, 1000UL * AP_HAL::millis(), g2.wheel_encoder.num_sensors(), distances);
+        mavlink_msg_wheel_distance_send(chan, 1000UL * AP_HAL::millis(), distances);
     }
 }
 
@@ -1551,12 +1551,10 @@ void GCS_MAVLINK_Copter::handle_wheel_distance(const mavlink_message_t &msg)
     mavlink_msg_wheel_distance_decode(&msg, &packet);
 
 
-    // check for valid wheel distance data
-    if (packet.count > 0 && packet.count <= MAVLINK_MSG_WHEEL_DISTANCE_FIELD_DISTANCE_LEN) {
-        // store wheel distance data
-        copter.g2.wheel_encoder.updateMavlinkWheelEncoders(packet.distance,sender_sysid);
+
+    copter.g2.wheel_encoder.updateMavlinkWheelEncoders(packet.distance,sender_sysid);
         
-    }
+    
 }
 
 MAV_RESULT GCS_MAVLINK_Copter::handle_flight_termination(const mavlink_command_int_t &packet) {
