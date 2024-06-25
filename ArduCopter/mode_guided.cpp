@@ -15,10 +15,12 @@ static uint32_t update_time_ms;             // system time of last target update
 struct {
     uint32_t update_time_ms;
     Quaternion attitude_quat;
+    Quaternion encoder_reference_attitude_target;
     Vector3f ang_vel;
     float yaw_rate_cds;
     float climb_rate_cms;   // climb rate in cms.  Used if use_thrust is false
     float thrust;           // thrust from -1 to 1.  Used if use_thrust is true
+    bool using_encoder;
     bool use_yaw_rate;
     bool use_thrust;
 } static guided_angle_state;
@@ -641,7 +643,7 @@ void ModeGuided::set_angle(const Quaternion &attitude_quat, const Vector3f &ang_
     if (guided_mode != SubMode::Angle) {
         angle_control_start();
     }
-
+    guided_angle_state.using_encoder = false;
     guided_angle_state.attitude_quat = attitude_quat;
     guided_angle_state.ang_vel = ang_vel;
 
@@ -659,6 +661,41 @@ void ModeGuided::set_angle(const Quaternion &attitude_quat, const Vector3f &ang_
     // convert quaternion to euler angles
     float roll_rad, pitch_rad, yaw_rad;
     attitude_quat.to_euler(roll_rad, pitch_rad, yaw_rad);
+
+#if HAL_LOGGING_ENABLED
+    // log target
+    copter.Log_Write_Guided_Attitude_Target(guided_mode, roll_rad, pitch_rad, yaw_rad, ang_vel, guided_angle_state.thrust, guided_angle_state.climb_rate_cms * 0.01);
+#endif
+}
+
+void ModeGuided::set_encoder_based_angle(const Quaternion &attitude_quat, const Vector3f &ang_vel, float climb_rate_cms_or_thrust, bool use_thrust)
+{
+    // check we are in velocity control mode
+    if (guided_mode != SubMode::Angle) {
+        angle_control_start();
+    }
+
+
+    guided_angle_state.using_encoder = true;
+
+    guided_angle_state.encoder_reference_attitude_target = attitude_quat;
+    guided_angle_state.ang_vel = ang_vel;
+
+    guided_angle_state.use_thrust = use_thrust;
+    if (use_thrust) {
+        guided_angle_state.thrust = climb_rate_cms_or_thrust;
+        guided_angle_state.climb_rate_cms = 0.0f;
+    } else {
+        guided_angle_state.thrust = 0.0f;
+        guided_angle_state.climb_rate_cms = climb_rate_cms_or_thrust;
+    }
+
+    guided_angle_state.update_time_ms = millis();
+
+    // convert quaternion to euler angles
+    float roll_rad, pitch_rad, yaw_rad;
+    attitude_quat.to_euler(roll_rad, pitch_rad, yaw_rad);
+    
 
 #if HAL_LOGGING_ENABLED
     // log target
@@ -931,6 +968,22 @@ void ModeGuided::angle_control_run()
 
         // get avoidance adjusted climb rate
         climb_rate_cms = get_avoidance_adjusted_climbrate(climb_rate_cms);
+    }
+
+   
+
+    if( guided_angle_state.using_encoder ) {
+        // update the yaw target
+        // get current vehicle attitude
+        Quaternion target_attitude = Quaternion(guided_angle_state.encoder_reference_attitude_target);
+        
+        float yaw_offset = copter.ahrs.get_yaw() -  radians(copter.g2.wheel_encoder.get_wheel_angle(1));
+
+        target_attitude.rotate(Vector3f(0, 0, yaw_offset));
+
+        guided_angle_state.attitude_quat = target_attitude;
+        
+        
     }
 
     // check for timeout - set lean angles and climb rate to zero if no updates received for 3 seconds
