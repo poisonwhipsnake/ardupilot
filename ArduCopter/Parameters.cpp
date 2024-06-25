@@ -1253,6 +1253,8 @@ const AP_Param::GroupInfo ParametersG2::var_info2[] = {
 
     AP_SUBGROUPINFO(EncoderPosHold, "ENC_PID_", 9, ParametersG2, AC_PID),
 
+    AP_GROUPINFO("GUIDED_ENC", 10, ParametersG2, encoder_for_guided, 0),
+
     // ID 62 is reserved for the AP_SUBGROUPEXTENSION
 
     AP_GROUPEND

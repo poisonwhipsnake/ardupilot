@@ -11,6 +11,7 @@ bool guided_pos_terrain_alt;                // true if guided_pos_target_cm.z is
 static Vector3f guided_vel_target_cms;      // velocity target (used by pos_vel_accel controller and vel_accel controller)
 static Vector3f guided_accel_target_cmss;   // acceleration target (used by pos_vel_accel controller vel_accel controller and accel controller)
 static uint32_t update_time_ms;             // system time of last target update to pos_vel_accel, vel_accel or accel controller
+uint32_t time_of_last_print = 0;            // system time of last print
 
 struct {
     uint32_t update_time_ms;
@@ -695,7 +696,7 @@ void ModeGuided::set_encoder_based_angle(const Quaternion &attitude_quat, const 
     // convert quaternion to euler angles
     float roll_rad, pitch_rad, yaw_rad;
     attitude_quat.to_euler(roll_rad, pitch_rad, yaw_rad);
-    
+
 
 #if HAL_LOGGING_ENABLED
     // log target
@@ -977,11 +978,23 @@ void ModeGuided::angle_control_run()
         // get current vehicle attitude
         Quaternion target_attitude = Quaternion(guided_angle_state.encoder_reference_attitude_target);
         
-        float yaw_offset = copter.ahrs.get_yaw() -  radians(copter.g2.wheel_encoder.get_wheel_angle(1));
+        float yaw_offset = copter.ahrs.get_yaw() -  radians(copter.g2.wheel_encoder.get_wheel_angle(copter.g2.encoder_for_guided));
 
         target_attitude.rotate(Vector3f(0, 0, yaw_offset));
 
         guided_angle_state.attitude_quat = target_attitude;
+
+        // convert quaternion to euler angles
+        //float roll_rad, pitch_rad, yaw_rad;
+        //guided_angle_state.encoder_reference_attitude_target.to_euler(roll_rad, pitch_rad, yaw_rad);
+
+        /*if(millis() - time_of_last_print > 1000) {
+            copter.gcs().send_text(MAV_SEVERITY_INFO, "Yaw offset: %f", degrees(yaw_offset));
+            copter.gcs().send_text(MAV_SEVERITY_INFO, "Yaw: %f", degrees(copter.ahrs.get_yaw()));
+            copter.gcs().send_text(MAV_SEVERITY_INFO, "Encoder: %f", copter.g2.wheel_encoder.get_wheel_angle(copter.g2.encoder_for_guided));
+            time_of_last_print = millis();
+        }*/
+
         
         
     }
@@ -998,6 +1011,8 @@ void ModeGuided::angle_control_run()
             guided_angle_state.use_thrust = false;
         }
     }
+
+    guided_angle_state.update_time_ms = tnow;
 
     // interpret positive climb rate or thrust as triggering take-off
     const bool positive_thrust_or_climbrate = is_positive(guided_angle_state.use_thrust ? guided_angle_state.thrust : climb_rate_cms);
