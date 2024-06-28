@@ -1023,13 +1023,13 @@ void ModeGuided::angle_control_run()
     // if not armed set throttle to zero and exit immediately
     if (!motors->armed() || !copter.ap.auto_armed || (copter.ap.land_complete && !positive_thrust_or_climbrate)) {
         // do not spool down tradheli when on the ground with motor interlock enabled
-        make_safe_ground_handling(copter.is_tradheli() && motors->get_interlock());
+        //make_safe_ground_handling(copter.is_tradheli() && motors->get_interlock());
         return;
     }
 
     // TODO: use get_alt_hold_state
     // landed with positive desired climb rate, takeoff
-    if (copter.ap.land_complete && (guided_angle_state.climb_rate_cms > 0.0f)) {
+    /*if (copter.ap.land_complete && (guided_angle_state.climb_rate_cms > 0.0f)) {
         zero_throttle_and_relax_ac();
         motors->set_desired_spool_state(AP_Motors::DesiredSpoolState::THROTTLE_UNLIMITED);
         if (motors->get_spool_state() == AP_Motors::SpoolState::THROTTLE_UNLIMITED) {
@@ -1038,7 +1038,7 @@ void ModeGuided::angle_control_run()
         }
         return;
     }
-
+    */
     // set motors to full range
     motors->set_desired_spool_state(AP_Motors::DesiredSpoolState::THROTTLE_UNLIMITED);
 

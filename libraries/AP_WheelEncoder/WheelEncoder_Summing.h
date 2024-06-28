@@ -14,13 +14,13 @@
  */
 #pragma once
 
-#include <AP_HAL/AP_HAL.h>
-#include <AP_HAL/SPIDevice.h>
+#include <AP_HAL/AP_HAL.h> 
+
 
 #include "WheelEncoder_Backend.h"
 #include <AP_Math/AP_Math.h>
 
-class AP_WheelEncoder_AS5047P : public AP_WheelEncoder_Backend
+class AP_WheelEncoder_Summing : public AP_WheelEncoder_Backend
 {
 public:
 
@@ -29,10 +29,16 @@ public:
     // update state
     void update(float wheelAngles[], int8_t relevantInstance) override;
 
+    void initialise(AP_Int8  _types[]) override;
+    
+
 private:
     uint64_t last_update_ms = 0;
     uint16_t last_encoder_value = 0;
     float last_angle = 0.0f;
+    bool setup;
+    uint8_t Local_ENCODER = 0;
+    uint8_t Mavlink_ENCODER = 0;
 
-    AP_HAL::OwnPtr<AP_HAL::Device> _dev;
+
 };

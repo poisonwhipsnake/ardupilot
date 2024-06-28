@@ -19,9 +19,19 @@
 #include <AP_Math/AP_Math.h>
 
 // Maximum number of WheelEncoder measurement instances available on this platform
-#define WHEELENCODER_MAX_INSTANCES      2
+#define WHEELENCODER_MAX_INSTANCES      3
 #define WHEELENCODER_CPR_DEFAULT        3200    // default encoder counts per full revolution of the wheel
 #define WHEELENCODER_RADIUS_DEFAULT     0.05f   // default wheel radius of 5cm (0.05m)
+
+
+// WheelEncoder driver types
+#define WheelEncoder_TYPE_NONE                0
+#define WheelEncoder_TYPE_QUADRATURE          1
+#define WheelEncoder_TYPE_AS5047P             2
+#define WheelEncoder_TYPE_Mavlink             3
+#define WheelEncoder_TYPE_Summing             4
+#define WheelEncoder_TYPE_SITL_QUADRATURE    10
+   
 
 class AP_WheelEncoder_Backend; 
  
@@ -32,6 +42,7 @@ public:
     friend class AP_WheelEncoder_Quadrature;
     friend class AP_WheelEncoder_AS5047P;
     friend class AP_WheelEncoder_Mavlink;
+    friend class AP_WheelEncoder_Summing;
     friend class AP_WheelEncoder_SITL_Quadrature;
 
     AP_WheelEncoder(void);
@@ -44,14 +55,8 @@ public:
         return _singleton;
     }
 
-    // WheelEncoder driver types
-    enum WheelEncoder_Type : uint8_t {
-        WheelEncoder_TYPE_NONE             =   0,
-        WheelEncoder_TYPE_QUADRATURE       =   1,
-        WheelEncoder_TYPE_AS5047P          =   2,
-        WheelEncoder_TYPE_Mavlink          =   3,
-        WheelEncoder_TYPE_SITL_QUADRATURE  =  10,
-    };
+
+
 
     // The WheelEncoder_State structure is filled in by the backend driver
     struct WheelEncoder_State {

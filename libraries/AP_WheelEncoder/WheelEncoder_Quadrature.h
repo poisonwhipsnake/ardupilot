@@ -26,7 +26,7 @@ public:
     using AP_WheelEncoder_Backend::AP_WheelEncoder_Backend;
 
     // update state
-    void update(float unused) override;
+    void update(float wheelAngles[], int8_t relevantInstance) override;
 
 private:
 

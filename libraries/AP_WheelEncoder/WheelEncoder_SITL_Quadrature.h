@@ -27,7 +27,7 @@ public:
     using AP_WheelEncoder_Backend::AP_WheelEncoder_Backend;
 
     // update state
-    void update(float unused) override;
+    void update(float wheelAngles[], int8_t relevantInstance) override;
 
 private:
     int32_t  _distance_count; // distance count as number of encoder ticks

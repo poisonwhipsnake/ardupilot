@@ -18,6 +18,7 @@
 #include "WheelEncoder_SITL_Quadrature.h"
 #include "WheelEncoder_AS5047P.h"
 #include "WheelEncoder_Mavlink.h"
+#include "WheelEncoder_Summing.h"
 #include <AP_Logger/AP_Logger.h>
 #include <GCS_MAVLink/GCS.h>
 
@@ -180,6 +181,85 @@ const AP_Param::GroupInfo AP_WheelEncoder::var_info[] = {
 
 #endif
 
+#if WHEELENCODER_MAX_INSTANCES >2
+    // @Param: 2_TYPE
+    // @DisplayName: Second WheelEncoder type
+    // @Description: What type of WheelEncoder sensor is connected
+    // @Values: 0:None,1:Quadrature,10:SITL Quadrature
+    // @User: Standard
+    AP_GROUPINFO("3_TYPE",   20, AP_WheelEncoder, _type[2], 4),
+
+    // @Param: 2_CPR
+    // @DisplayName: WheelEncoder 2 counts per revolution
+    // @Description: WheelEncoder 2 counts per full revolution of the wheel
+    // @Increment: 1
+    // @User: Standard
+    AP_GROUPINFO("3_CPR",     21, AP_WheelEncoder, _counts_per_revolution[2], WHEELENCODER_CPR_DEFAULT),
+
+    // @Param: 2_RADIUS
+    // @DisplayName: Wheel2's radius
+    // @Description: Wheel2's radius
+    // @Units: m
+    // @Increment: 0.001
+    // @User: Standard
+    AP_GROUPINFO("3_RADIUS", 22, AP_WheelEncoder, _wheel_radius[2], WHEELENCODER_RADIUS_DEFAULT),
+
+    // @Param: 2_POS_X
+    // @DisplayName: Wheel2's X position offset
+    // @Description: X position of the center of the second wheel in body frame. Positive X is forward of the origin.
+    // @Units: m
+    // @Range: -5 5
+    // @Increment: 0.01
+    // @User: Standard
+
+    // @Param: 2_POS_Y
+    // @DisplayName: Wheel2's Y position offset
+    // @Description: Y position of the center of the second wheel in body frame. Positive Y is to the right of the origin.
+    // @Units: m
+    // @Range: -5 5
+    // @Increment: 0.01
+    // @User: Standard
+
+    // @Param: 2_POS_Z
+    // @DisplayName: Wheel2's Z position offset
+    // @Description: Z position of the center of the second wheel in body frame. Positive Z is down from the origin.
+    // @Units: m
+    // @Range: -5 5
+    // @Increment: 0.01
+    // @User: Standard
+    AP_GROUPINFO("3_POS",    23, AP_WheelEncoder, _pos_offset[2], 0.0f),
+
+    // @Param: 2_PINA
+    // @DisplayName: Second Encoder Input Pin A
+    // @Description: Second Encoder Input Pin A
+    // @Values: -1:Disabled,50:AUX1,51:AUX2,52:AUX3,53:AUX4,54:AUX5,55:AUX6
+    // @User: Standard
+    AP_GROUPINFO("3_PINA",   24, AP_WheelEncoder, _pina[2], 53),
+
+    // @Param: 2_PINB
+    // @DisplayName: Second Encoder Input Pin B
+    // @Description: Second Encoder Input Pin B
+    // @Values: -1:Disabled,50:AUX1,51:AUX2,52:AUX3,53:AUX4,54:AUX5,55:AUX6
+    // @User: Standard
+    AP_GROUPINFO("3_PINB",   25, AP_WheelEncoder, _pinb[2], 52),
+
+    // @Param: _ZEROOS
+    // @DisplayName: Zero Offset
+    // @Description: Angle in degrees as read by the encoder when the encoder is at the zero position 
+    // @Units: degrees
+    // @Range: 0 to 360.0
+    // @Increment: 0.01
+    // @User: Standard
+    AP_GROUPINFO("3_ZEROOS", 26, AP_WheelEncoder, _zero_angle[2], 0.0f),
+
+    AP_GROUPINFO("3_INVERT", 27, AP_WheelEncoder, _invert[2], 0),
+
+    AP_GROUPINFO("3_SYSID", 28, AP_WheelEncoder, _sysid[2], 0),
+
+    AP_GROUPINFO("3_DEVID", 29, AP_WheelEncoder, _devid[2], 0),
+
+#endif
+
     AP_GROUPEND
 };
 
@@ -198,7 +278,7 @@ void AP_WheelEncoder::init(void)
         return;
     }
     for (uint8_t i=0; i<WHEELENCODER_MAX_INSTANCES; i++) {
-        switch ((WheelEncoder_Type)_type[i].get()) {
+        switch (_type[i].get()) {
 
         case WheelEncoder_TYPE_QUADRATURE:
 #if CONFIG_HAL_BOARD == HAL_BOARD_CHIBIOS
@@ -222,7 +302,11 @@ void AP_WheelEncoder::init(void)
             drivers[i] = new AP_WheelEncoder_Mavlink(*this, i, state[i]);
             break;
 
-            
+        case WheelEncoder_TYPE_Summing:
+            drivers[i] = new AP_WheelEncoder_Summing(*this, i, state[i]);
+            drivers[i]->initialise(_type);
+            break;    
+        
         case WheelEncoder_TYPE_NONE:
             break;
         }
@@ -246,7 +330,7 @@ void AP_WheelEncoder::updateMavlinkWheelEncoders(float distances[], int message_
     for (uint8_t i=0; i<num_instances; i++) {
         if (drivers[i] != nullptr && _type[i] == WheelEncoder_TYPE_Mavlink) {
             if (message_id == _sysid[i]) {
-                drivers[i]->update(distances[_devid[i]]);
+                drivers[i]->update(distances,_devid[i]);
             }
         }
     }
@@ -257,9 +341,13 @@ void AP_WheelEncoder::updateMavlinkWheelEncoders(float distances[], int message_
 // update WheelEncoder state for all instances. This should be called by main loop
 void AP_WheelEncoder::update(void)
 {
+    float wheelAngles[WHEELENCODER_MAX_INSTANCES];
+    for (uint8_t i=0; i<num_instances; i++) {
+        wheelAngles[i] = state[i].wheel_angle;
+    }
     for (uint8_t i=0; i<num_instances; i++) {
         if (drivers[i] != nullptr && _type[i] != WheelEncoder_TYPE_NONE && _type[i] != WheelEncoder_TYPE_Mavlink) {
-            drivers[i]->update(0.0f);
+            drivers[i]->update(wheelAngles,i);
             float wheelAngle = state[i].raw_angle - _zero_angle[i];
             if(wheelAngle > 180.0f) {
                 wheelAngle -= 360.0f;

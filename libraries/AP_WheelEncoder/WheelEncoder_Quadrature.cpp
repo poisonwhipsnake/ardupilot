@@ -57,7 +57,7 @@ void AP_WheelEncoder_Quadrature::update_pin(uint8_t &pin,
     }
 }
 
-void AP_WheelEncoder_Quadrature::update(float unused)
+void AP_WheelEncoder_Quadrature::update(float wheelAngles[], int8_t relevantInstance)
 {
     update_pin(last_pin_a, get_pin_a(), last_pin_a_value);
     update_pin(last_pin_b, get_pin_b(), last_pin_b_value);

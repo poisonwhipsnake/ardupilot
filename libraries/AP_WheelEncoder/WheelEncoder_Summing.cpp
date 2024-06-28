@@ -1,0 +1,64 @@
+/*
+   This program is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+#include <AP_HAL/AP_HAL.h>
+
+#include "WheelEncoder_Summing.h"
+
+#include <GCS_MAVLink/GCS.h>
+
+#include "AP_WheelEncoder.h"
+
+
+
+extern const AP_HAL::HAL& hal;
+
+
+void AP_WheelEncoder_Summing::update(float wheelAngles[], int8_t relevantInstance){
+        
+        _state.raw_angle = wheelAngles[Local_ENCODER] + wheelAngles[Mavlink_ENCODER];
+        //send message once per second
+
+        last_encoder_value = _state.raw_angle;
+        _state.wheel_angle =  _state.raw_angle;
+
+
+}
+
+void AP_WheelEncoder_Summing::initialise(AP_Int8  _types[]) {
+    setup = false;
+    bool founda = false;
+    bool foundb = false;
+    for (uint8_t i = 0; i < WHEELENCODER_MAX_INSTANCES; i++) {
+
+        if (_types[i] == WheelEncoder_TYPE_AS5047P) {
+            Local_ENCODER = i;
+            founda = true;
+        }
+        if (_types[i] == WheelEncoder_TYPE_Mavlink) {
+            Mavlink_ENCODER = i;
+            foundb = true;
+        }
+    }
+    if(founda && foundb){
+        gcs().send_text(MAV_SEVERITY_CRITICAL, "Summing Encoder initialised successfully");
+        setup = true;
+       
+    }
+    else{
+        gcs().send_text(MAV_SEVERITY_CRITICAL, "Summing Encoder failed to initialise");
+    }
+
+}
