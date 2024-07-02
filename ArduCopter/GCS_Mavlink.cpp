@@ -314,6 +314,7 @@ void GCS_MAVLINK_Copter::send_pid_tuning()
         }
         if (pid_info != nullptr) {
             mavlink_msg_pid_tuning_send(chan,
+                                        AP_HAL::millis(),
                                         axes[i],
                                         pid_info->target,
                                         pid_info->actual,
