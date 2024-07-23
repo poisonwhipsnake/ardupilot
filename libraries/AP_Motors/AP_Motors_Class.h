@@ -325,6 +325,7 @@ protected:
     float               _forward_in;                // last forward input from set_forward caller
     float               _lateral_in;                // last lateral input from set_lateral caller
     float               _throttle_avg_max;          // last throttle input from set_throttle_avg_max
+    float               _link_angle;
     LowPassFilterFloat  _throttle_filter;           // pilot throttle input filter
     DerivativeFilterFloat_Size7  _throttle_slew;    // throttle output slew detector
     LowPassFilterFloat  _throttle_slew_filter;      // filter for the output of the throttle slew

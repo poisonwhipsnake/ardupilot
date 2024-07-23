@@ -167,9 +167,16 @@ void AP_MotorsMatrix::output_to_motors()
         case SpoolState::SPOOLING_DOWN:
             // set motor output based on thrust requests
             for (i = 0; i < AP_MOTORS_MAX_NUM_MOTORS; i++) {
+
+                
                 if (motor_enabled[i]) {
                     set_actuator_with_slew(_actuator[i], thr_lin.thrust_to_actuator(_thrust_rpyt_out[i]));
                 }
+
+                if (i == _enc_mot_num){
+                    if (abs(get_encoder_angle()) < _enc_mot_angle)
+                    _actuator[i] = 0.0f;
+                }                
             }
             break;
     }

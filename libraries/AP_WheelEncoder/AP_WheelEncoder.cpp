@@ -554,9 +554,9 @@ AP_WheelEncoder *AP_WheelEncoder::_singleton;
 
 namespace AP {
 
-AP_WheelEncoder *wheelencoder()
+AP_WheelEncoder &wheelencoder()
 {
-    return AP_WheelEncoder::get_singleton();
+    return *AP_WheelEncoder::get_singleton();
 }
 
 }

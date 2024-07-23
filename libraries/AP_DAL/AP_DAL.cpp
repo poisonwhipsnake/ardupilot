@@ -76,7 +76,7 @@ void AP_DAL::start_frame(AP_DAL::FrameType frametype)
 #if AP_OPTICALFLOW_ENABLED
     _RFRN.opticalflow_enabled = AP::opticalflow() && AP::opticalflow()->enabled();
 #endif
-    _RFRN.wheelencoder_enabled = AP::wheelencoder() && (AP::wheelencoder()->num_sensors() > 0);
+    _RFRN.wheelencoder_enabled = (AP::wheelencoder().num_sensors() > 0);
     _RFRN.ekf_type = ahrs.get_ekf_type();
     WRITE_REPLAY_BLOCK_IFCHANGED(RFRN, _RFRN, old);
 

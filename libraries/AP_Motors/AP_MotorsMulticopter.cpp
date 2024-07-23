@@ -16,6 +16,7 @@
 #include "AP_MotorsMulticopter.h"
 #include <AP_HAL/AP_HAL.h>
 #include <AP_BattMonitor/AP_BattMonitor.h>
+#include <AP_WheelEncoder/AP_WheelEncoder.h>
 #include <SRV_Channel/SRV_Channel.h>
 #include <AP_Logger/AP_Logger.h>
 
@@ -231,6 +232,16 @@ const AP_Param::GroupInfo AP_MotorsMulticopter::var_info[] = {
     // @User: Advanced
     AP_GROUPINFO("SPOOL_TIM_DN", 44, AP_MotorsMulticopter, _spool_down_time, 0),
 
+
+    AP_GROUPINFO("ENC_MOT_NUM", 45, AP_MotorsMulticopter, _enc_mot_num, 0),
+
+    AP_GROUPINFO("ENC_NUM", 46, AP_MotorsMulticopter, _enc_num, 0),
+    
+    AP_GROUPINFO("ENC_MOT_ANGLE", 47, AP_MotorsMulticopter, _enc_mot_angle, 0),
+
+
+
+
     AP_GROUPEND
 };
 
@@ -340,6 +351,14 @@ void AP_MotorsMulticopter::update_throttle_filter()
     // calculate slope normalized from per-micro
     const float rate = fabsf(_throttle_slew.slope() * 1e6);
     _throttle_slew_rate = _throttle_slew_filter.apply(rate, _dt);
+}
+
+float AP_MotorsMulticopter::get_encoder_angle()
+{
+    AP_WheelEncoder &wheelEncoder = AP::wheelencoder();
+
+    _link_angle = wheelEncoder.get_wheel_angle(_enc_num);
+    return _link_angle;
 }
 
 // return current_limit as a number from 0 ~ 1 in the range throttle_min to throttle_max

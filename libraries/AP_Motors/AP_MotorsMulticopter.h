@@ -121,6 +121,8 @@ protected:
     // return current_limit as a number from 0 ~ 1 in the range throttle_min to throttle_max
     virtual float       get_current_limit_max_throttle();
 
+    float       get_encoder_angle();
+
     // convert actuator output (0~1) range to pwm range
     int16_t             output_to_pwm(float _actuator_output);
 
@@ -172,6 +174,10 @@ protected:
     // time to spool motors to min throttle
     AP_Float            _spool_up_time;
     AP_Float            _spool_down_time;
+
+    AP_Int8             _enc_mot_num;
+    AP_Int8             _enc_num;
+    AP_Float            _enc_mot_angle;
 
     // scaling for booster motor throttle
     AP_Float            _boost_scale;

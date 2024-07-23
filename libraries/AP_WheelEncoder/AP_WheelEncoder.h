@@ -153,5 +153,5 @@ private:
 };
 
 namespace AP {
-    AP_WheelEncoder *wheelencoder();
+    AP_WheelEncoder &wheelencoder();
 }
