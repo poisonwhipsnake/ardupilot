@@ -176,19 +176,19 @@ bool Copter::get_rangefinder_height_interpolated_cm(int32_t& ret) const
 // update wheel encoders
 void Copter::update_wheel_encoder()
 {
-    
+    AP_WheelEncoder &wheelEncoder = AP::wheelencoder();
     // exit immediately if not enabled
-    if (g2.wheel_encoder.num_sensors() == 0) {
+    if (wheelEncoder.num_sensors() == 0) {
         return;
     }
 
     // update encoders
-    g2.wheel_encoder.update();
+    wheelEncoder.update();
 
     // save cumulative distances at current time (in meters) for reporting to GCS
-    for (uint8_t i = 0; i < g2.wheel_encoder.num_sensors(); i++) {
-        wheel_encoder_wheel_angle[i] = g2.wheel_encoder.get_wheel_angle(i);
-        wheel_encoder_raw_angle[i] = g2.wheel_encoder.get_raw_angle(i);
+    for (uint8_t i = 0; i < wheelEncoder.num_sensors(); i++) {
+        wheel_encoder_wheel_angle[i] = wheelEncoder.get_wheel_angle(i);
+        wheel_encoder_raw_angle[i] = wheelEncoder.get_raw_angle(i);
     }
     
 

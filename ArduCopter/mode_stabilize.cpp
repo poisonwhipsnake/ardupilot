@@ -23,7 +23,9 @@ void ModeStabilize::run()
     float input_yaw_rate =get_pilot_desired_yaw_rate(channel_yaw->norm_input_dz());
     target_encoder_value = target_encoder_value + ((input_yaw_rate/100)*dt);
 
-    float target_yaw_rate = copter.g2.EncoderPosHold.update_all(target_encoder_value,copter.g2.wheel_encoder.get_distance(0),dt);
+    AP_WheelEncoder &wheelEncoder2 = AP::wheelencoder();
+    
+    float target_yaw_rate = copter.g2.EncoderPosHold.update_all(target_encoder_value,wheelEncoder2.get_distance(0),dt);
 
     if ((now- last_message_time)/1000000 >1.0f ){
         //send mavlink gcs text message
@@ -47,7 +49,8 @@ void ModeStabilize::run()
     if (!motors->armed()) {
         // Motors should be Stopped
         motors->set_desired_spool_state(AP_Motors::DesiredSpoolState::SHUT_DOWN);
-        target_encoder_value = copter.g2.wheel_encoder.get_distance(0);
+        AP_WheelEncoder &wheelEncoder = AP::wheelencoder();
+        target_encoder_value = wheelEncoder.get_distance(0);
 
     } else if (copter.ap.throttle_zero
                || (copter.air_mode == AirMode::AIRMODE_ENABLED && motors->get_spool_state() == AP_Motors::SpoolState::SHUT_DOWN)) {

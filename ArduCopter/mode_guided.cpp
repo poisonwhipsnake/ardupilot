@@ -960,6 +960,14 @@ void ModeGuided::posvelaccel_control_run()
     attitude_control->input_thrust_vector_heading(pos_control->get_thrust_vector(), auto_yaw.get_heading());
 }
 
+float ModeGuided::get_encoder_angle()
+{
+    AP_WheelEncoder &wheelEncoder = AP::wheelencoder();
+
+    return wheelEncoder.get_wheel_angle(copter.g2.encoder_for_guided);
+}
+
+
 // angle_control_run - runs the guided angle controller
 // called from guided_run
 void ModeGuided::angle_control_run()
@@ -980,7 +988,7 @@ void ModeGuided::angle_control_run()
         // get current vehicle attitude
         Quaternion target_attitude = Quaternion(guided_angle_state.encoder_reference_attitude_target);
         
-        float yaw_offset = copter.ahrs.get_yaw() -  radians(copter.g2.wheel_encoder.get_wheel_angle(copter.g2.encoder_for_guided));
+        float yaw_offset = copter.ahrs.get_yaw() -  radians(get_encoder_angle());
 
         target_attitude.rotate(Vector3f(0, 0, yaw_offset));
 
@@ -999,18 +1007,6 @@ void ModeGuided::angle_control_run()
         else{
             I_term_reset_performed = false;
         }
-
- 
-        // convert quaternion to euler angles
-        //float roll_rad, pitch_rad, yaw_rad;
-        //guided_angle_state.encoder_reference_attitude_target.to_euler(roll_rad, pitch_rad, yaw_rad);
-
-        /*if(millis() - time_of_last_print > 1000) {
-            copter.gcs().send_text(MAV_SEVERITY_INFO, "Yaw offset: %f", degrees(yaw_offset));
-            copter.gcs().send_text(MAV_SEVERITY_INFO, "Yaw: %f", degrees(copter.ahrs.get_yaw()));
-            copter.gcs().send_text(MAV_SEVERITY_INFO, "Encoder: %f", copter.g2.wheel_encoder.get_wheel_angle(copter.g2.encoder_for_guided));
-            time_of_last_print = millis();
-        }*/
 
         
         

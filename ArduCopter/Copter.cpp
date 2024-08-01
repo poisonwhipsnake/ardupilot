@@ -599,8 +599,8 @@ void Copter::ten_hz_logging_loop()
 // twentyfive_hz_logging - should be run at 25hz
 void Copter::twentyfive_hz_logging()
 {
-
-    g2.wheel_encoder.Log_Write();
+    AP_WheelEncoder &wheelEncoder = AP::wheelencoder();
+    wheelEncoder.Log_Write();
     
     if (should_log(MASK_LOG_ATTITUDE_FAST)) {
         Log_Write_EKF_POS();

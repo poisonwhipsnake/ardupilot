@@ -89,9 +89,9 @@ void Copter::init_ardupilot()
     // check if we should enter esc calibration mode
     esc_calibration_startup_check();
 
-    
+    AP_WheelEncoder &wheelEncoder = AP::wheelencoder();
     // init wheel encoders
-    g2.wheel_encoder.init();
+    wheelEncoder.init();
 
     // motors initialised so parameters can be sent
     ap.initialised_params = true;
