@@ -86,6 +86,8 @@ public:
     // return whether a motor is enabled or not
     bool                is_motor_enabled(uint8_t i) override { return motor_enabled[i]; }
 
+    bool                is_encoder_motor_active() { return encoder_motor_active; }
+
     // convert values to PWM min and max if not configured
     void                convert_pwm_min_max_param(int16_t radio_min, int16_t radio_max);
 
@@ -178,12 +180,18 @@ protected:
     AP_Int8             _enc_mot_num;
     AP_Int8             _enc_num;
     AP_Float            _enc_mot_angle;
+    AP_Float            _enc_spool;
+    AP_Float            _enc_hyst;
 
     // scaling for booster motor throttle
     AP_Float            _boost_scale;
 
     // motor output variables
     bool                motor_enabled[AP_MOTORS_MAX_NUM_MOTORS];    // true if motor is enabled
+
+    bool                encoder_motor_active;
+
+    uint32_t            encoder_motor_start_time;            // bitmask of which outputs are being used for motors (1 means being used)  
 
     // spool variables
     float               _spin_up_ratio;      // throttle percentage (0 ~ 1) between zero and throttle_min

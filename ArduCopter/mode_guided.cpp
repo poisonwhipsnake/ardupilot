@@ -12,6 +12,7 @@ static Vector3f guided_vel_target_cms;      // velocity target (used by pos_vel_
 static Vector3f guided_accel_target_cmss;   // acceleration target (used by pos_vel_accel controller vel_accel controller and accel controller)
 static uint32_t update_time_ms;             // system time of last target update to pos_vel_accel, vel_accel or accel controller
 uint32_t time_of_last_print = 0;            // system time of last print
+bool I_term_reset_performed = false;        // true if I term reset has been performed
 
 struct {
     uint32_t update_time_ms;
@@ -46,6 +47,7 @@ bool ModeGuided::init(bool ignore_checks)
 
     // clear pause state when entering guided mode
     _paused = false;
+    I_term_reset_performed = false;
 
     return true;
 }
@@ -983,7 +985,22 @@ void ModeGuided::angle_control_run()
         target_attitude.rotate(Vector3f(0, 0, yaw_offset));
 
         guided_angle_state.attitude_quat = target_attitude;
+        
 
+
+        if (motors->is_encoder_motor_active()) {
+            // set the motors to full range
+            if (!I_term_reset_performed){
+                attitude_control -> reset_rate_controller_I_terms_smoothly();
+                I_term_reset_performed = true;
+            }
+            
+        }
+        else{
+            I_term_reset_performed = false;
+        }
+
+ 
         // convert quaternion to euler angles
         //float roll_rad, pitch_rad, yaw_rad;
         //guided_angle_state.encoder_reference_attitude_target.to_euler(roll_rad, pitch_rad, yaw_rad);

@@ -237,7 +237,11 @@ const AP_Param::GroupInfo AP_MotorsMulticopter::var_info[] = {
 
     AP_GROUPINFO("ENC_NUM", 46, AP_MotorsMulticopter, _enc_num, 0),
     
-    AP_GROUPINFO("ENC_MOT_ANGLE", 47, AP_MotorsMulticopter, _enc_mot_angle, 0),
+    AP_GROUPINFO("ENC_MOT_ANG", 47, AP_MotorsMulticopter, _enc_mot_angle, 0),
+
+    AP_GROUPINFO("ENC_SPOOL", 48, AP_MotorsMulticopter, _enc_spool, 0),
+
+    AP_GROUPINFO("ENC_HYST", 49, AP_MotorsMulticopter, _enc_hyst, 0),
 
 
 
