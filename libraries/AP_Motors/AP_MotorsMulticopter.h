@@ -86,7 +86,7 @@ public:
     // return whether a motor is enabled or not
     bool                is_motor_enabled(uint8_t i) override { return motor_enabled[i]; }
 
-    bool                is_encoder_motor_active() { return encoder_motor_active; }
+    bool                is_encoder_motor_activating() { return encoder_motor_activating; }
 
     // convert values to PWM min and max if not configured
     void                convert_pwm_min_max_param(int16_t radio_min, int16_t radio_max);
@@ -190,6 +190,7 @@ protected:
     bool                motor_enabled[AP_MOTORS_MAX_NUM_MOTORS];    // true if motor is enabled
 
     bool                encoder_motor_active;
+    bool                encoder_motor_activating;
 
     uint32_t            encoder_motor_start_time;            // bitmask of which outputs are being used for motors (1 means being used)  
 

@@ -461,6 +461,8 @@ protected:
     // rate controller input smoothing time constant
     AP_Float            _input_tc;
 
+    AP_Float            _i_relax_tc;
+
     // Intersampling period in seconds
     float               _dt;
 

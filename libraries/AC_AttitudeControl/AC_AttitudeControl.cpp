@@ -150,6 +150,9 @@ const AP_Param::GroupInfo AC_AttitudeControl::var_info[] = {
     // @User: Standard
     AP_GROUPINFO("INPUT_TC", 20, AC_AttitudeControl, _input_tc, AC_ATTITUDE_CONTROL_INPUT_TC_DEFAULT),
 
+
+    AP_GROUPINFO("I_RELAX_TC", 21, AC_AttitudeControl, _i_relax_tc, AC_ATTITUDE_RATE_RELAX_TC),
+
     AP_GROUPEND
 };
 
@@ -199,9 +202,9 @@ void AC_AttitudeControl::reset_rate_controller_I_terms()
 // reset rate controller I terms smoothly to zero in 0.5 seconds
 void AC_AttitudeControl::reset_rate_controller_I_terms_smoothly()
 {
-    get_rate_roll_pid().relax_integrator(0.0, _dt, AC_ATTITUDE_RATE_RELAX_TC);
-    get_rate_pitch_pid().relax_integrator(0.0, _dt, AC_ATTITUDE_RATE_RELAX_TC);
-    get_rate_yaw_pid().relax_integrator(0.0, _dt, AC_ATTITUDE_RATE_RELAX_TC);
+    get_rate_roll_pid().relax_integrator(0.0, _dt, _i_relax_tc);
+    get_rate_pitch_pid().relax_integrator(0.0, _dt, _i_relax_tc);
+    get_rate_yaw_pid().relax_integrator(0.0, _dt, _i_relax_tc);
 }
 
 // The attitude controller works around the concept of the desired attitude, target attitude

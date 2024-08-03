@@ -191,6 +191,7 @@ void AP_MotorsMatrix::output_to_motors()
                 else{
                     encoder_motor_active = true;
                 }
+                encoder_motor_activating = false;
             }
             else{
                 if (abs(get_encoder_angle()) <( _enc_mot_angle - _enc_hyst)){
@@ -200,6 +201,10 @@ void AP_MotorsMatrix::output_to_motors()
                 }
                 if ( (now - encoder_motor_start_time) < (_enc_spool*1000)){
                     _actuator[i] = _actuator[i] * ((now - encoder_motor_start_time) / (_enc_spool*1000));
+                    encoder_motor_activating = true;
+                }
+                else{
+                    encoder_motor_activating = false;
                 }
             }
 

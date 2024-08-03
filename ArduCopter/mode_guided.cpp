@@ -996,17 +996,11 @@ void ModeGuided::angle_control_run()
         
 
 
-        if (motors->is_encoder_motor_active()) {
-            // set the motors to full range
-            if (!I_term_reset_performed){
+        if (motors->is_encoder_motor_activating()) {
                 attitude_control -> reset_rate_controller_I_terms_smoothly();
-                I_term_reset_performed = true;
-            }
             
         }
-        else{
-            I_term_reset_performed = false;
-        }
+   
 
         
         
