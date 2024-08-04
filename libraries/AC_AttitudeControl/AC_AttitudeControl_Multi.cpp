@@ -317,6 +317,13 @@ const AP_Param::GroupInfo AC_AttitudeControl_Multi::var_info[] = {
     // @User: Advanced
     AP_GROUPINFO("THR_G_BOOST", 7, AC_AttitudeControl_Multi, _throttle_gain_boost, 0.0f),
 
+    AP_GROUPINFO("PITCH_LEN",8,AC_AttitudeControl_Multi, _pitch_length,2.0f),
+
+    AP_GROUPINFO("ROLL_LEN",9,AC_AttitudeControl_Multi, _roll_length,2.0f),
+
+    AP_GROUPINFO("YAW_LEN",10,AC_AttitudeControl_Multi, _yaw_length,2.0f),
+
+
     AP_GROUPEND
 };
 
@@ -450,14 +457,20 @@ void AC_AttitudeControl_Multi::rate_controller_run()
     _ang_vel_body += _sysid_ang_vel_body;
 
     Vector3f gyro_latest = _ahrs.get_gyro_latest();
+    Vector3f body_frame_accel_latest = AP::ins().get_accel();
+    float verticalAcceleration = -(body_frame_accel_latest.z + (_ahrs.cos_pitch()* GRAVITY_MSS));
+    float pitchDerivative = verticalAcceleration/_pitch_length;
+    float horizontalAcceleration = (body_frame_accel_latest.y - (_ahrs.sin_roll()* GRAVITY_MSS));
+    float yawDerivative = horizontalAcceleration/_yaw_length;
+
 
     _motors.set_roll(get_rate_roll_pid().update_all(_ang_vel_body.x, gyro_latest.x,  _dt, _motors.limit.roll, _pd_scale.x) + _actuator_sysid.x);
     _motors.set_roll_ff(get_rate_roll_pid().get_ff());
 
-    _motors.set_pitch(get_rate_pitch_pid().update_all(_ang_vel_body.y, gyro_latest.y,  _dt, _motors.limit.pitch, _pd_scale.y) + _actuator_sysid.y);
+    _motors.set_pitch(get_rate_pitch_pid().update_all_set_derivative(_ang_vel_body.y, gyro_latest.y,  _dt, _motors.limit.pitch, _pd_scale.y, pitchDerivative) + _actuator_sysid.y);
     _motors.set_pitch_ff(get_rate_pitch_pid().get_ff());
 
-    _motors.set_yaw(get_rate_yaw_pid().update_all(_ang_vel_body.z, gyro_latest.z,  _dt, _motors.limit.yaw, _pd_scale.z) + _actuator_sysid.z);
+    _motors.set_yaw(get_rate_yaw_pid().update_all_set_derivative(_ang_vel_body.z, gyro_latest.z,  _dt, _motors.limit.yaw, _pd_scale.z, yawDerivative) + _actuator_sysid.z);
     _motors.set_yaw_ff(get_rate_yaw_pid().get_ff()*_feedforward_scalar);
 
     _sysid_ang_vel_body.zero();
