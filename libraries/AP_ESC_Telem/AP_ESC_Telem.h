@@ -137,6 +137,8 @@ private:
 
     AP_Int8 mavlink_offset;
 
+    AP_Int8 configured_telem_escs;
+
     static AP_ESC_Telem *_singleton;
 };
 

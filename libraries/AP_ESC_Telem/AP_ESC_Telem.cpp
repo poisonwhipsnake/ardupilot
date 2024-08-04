@@ -41,6 +41,8 @@ const AP_Param::GroupInfo AP_ESC_Telem::var_info[] = {
     // @Range: 0 31
     // @User: Standard
     AP_GROUPINFO("_MAV_OFS", 1, AP_ESC_Telem, mavlink_offset, 0),
+
+    AP_GROUPINFO("_TEL_CON", 2, AP_ESC_Telem, configured_telem_escs, 4),
     
     AP_GROUPEND
 };
@@ -63,7 +65,7 @@ float AP_ESC_Telem::get_average_motor_rpm(uint32_t servo_channel_mask) const
     uint8_t valid_escs = 0;
 
     // average the rpm of each motor
-    for (uint8_t i = 0; i < ESC_TELEM_MAX_ESCS; i++) {
+    for (uint8_t i = 0; i < ESC_TELEM_MAX_ESCS && i< configured_telem_escs; i++) {
         if (BIT_IS_SET(servo_channel_mask,i)) {
             float rpm;
             if (get_rpm(i, rpm)) {
@@ -86,7 +88,7 @@ uint8_t AP_ESC_Telem::get_motor_frequencies_hz(uint8_t nfreqs, float* freqs) con
     uint8_t valid_escs = 0;
 
     // average the rpm of each motor as reported by BLHeli and convert to Hz
-    for (uint8_t i = 0; i < ESC_TELEM_MAX_ESCS && valid_escs < nfreqs; i++) {
+    for (uint8_t i = 0; i < ESC_TELEM_MAX_ESCS && valid_escs < nfreqs && i < configured_telem_escs; i++) {
         float rpm;
         if (get_rpm(i, rpm)) {
             freqs[valid_escs++] = rpm * (1.0f / 60.0f);
@@ -106,7 +108,7 @@ uint32_t AP_ESC_Telem::get_active_esc_mask() const {
     uint32_t ret = 0;
     const uint32_t now = AP_HAL::millis();
     uint32_t now_us = AP_HAL::micros();
-    for (uint8_t i = 0; i < ESC_TELEM_MAX_ESCS; i++) {
+    for (uint8_t i = 0; i < ESC_TELEM_MAX_ESCS && i<configured_telem_escs; i++) {
         if (_telem_data[i].last_update_ms == 0 && !was_rpm_data_ever_reported(_rpm_data[i])) {
             // have never seen telem from this ESC
             continue;
@@ -131,7 +133,7 @@ bool AP_ESC_Telem::are_motors_running(uint32_t servo_channel_mask, float min_rpm
 {
     const uint32_t now = AP_HAL::micros();
 
-    for (uint8_t i = 0; i < ESC_TELEM_MAX_ESCS; i++) {
+    for (uint8_t i = 0; i < ESC_TELEM_MAX_ESCS && i<configured_telem_escs; i++) {
         if (BIT_IS_SET(servo_channel_mask, i)) {
             const volatile AP_ESC_Telem_Backend::RpmData& rpmdata = _rpm_data[i];
             // we choose a relatively strict measure of health so that failsafe actions can rely on the results
@@ -152,7 +154,7 @@ bool AP_ESC_Telem::are_motors_running(uint32_t servo_channel_mask, float min_rpm
 // is telemetry active for the provided channel mask
 bool AP_ESC_Telem::is_telemetry_active(uint32_t servo_channel_mask) const
 {
-    for (uint8_t i = 0; i < ESC_TELEM_MAX_ESCS; i++) {
+    for (uint8_t i = 0; i < ESC_TELEM_MAX_ESCS && i< configured_telem_escs; i++) {
         if (BIT_IS_SET(servo_channel_mask, i)) {
             // no data received
             if (get_last_telem_data_ms(i) == 0 && !was_rpm_data_ever_reported(_rpm_data[i])) {
@@ -166,7 +168,7 @@ bool AP_ESC_Telem::is_telemetry_active(uint32_t servo_channel_mask) const
 // get an individual ESC's slewed rpm if available, returns true on success
 bool AP_ESC_Telem::get_rpm(uint8_t esc_index, float& rpm) const
 {
-    if (esc_index >= ESC_TELEM_MAX_ESCS) {
+    if (esc_index >= ESC_TELEM_MAX_ESCS || esc_index >= configured_telem_escs) {
         return false;
     }
 
@@ -195,7 +197,7 @@ bool AP_ESC_Telem::get_rpm(uint8_t esc_index, float& rpm) const
 // get an individual ESC's raw rpm if available, returns true on success
 bool AP_ESC_Telem::get_raw_rpm(uint8_t esc_index, float& rpm) const
 {
-    if (esc_index >= ESC_TELEM_MAX_ESCS) {
+    if (esc_index >= ESC_TELEM_MAX_ESCS || esc_index >= configured_telem_escs) {
         return false;
     }
 
@@ -214,7 +216,7 @@ bool AP_ESC_Telem::get_raw_rpm(uint8_t esc_index, float& rpm) const
 // get an individual ESC's temperature in centi-degrees if available, returns true on success
 bool AP_ESC_Telem::get_temperature(uint8_t esc_index, int16_t& temp) const
 {
-    if (esc_index >= ESC_TELEM_MAX_ESCS
+    if (esc_index >= ESC_TELEM_MAX_ESCS || esc_index >= configured_telem_escs
         || _telem_data[esc_index].stale()
         || !(_telem_data[esc_index].types & (AP_ESC_Telem_Backend::TelemetryType::TEMPERATURE | AP_ESC_Telem_Backend::TelemetryType::TEMPERATURE_EXTERNAL))) {
         return false;
@@ -226,7 +228,7 @@ bool AP_ESC_Telem::get_temperature(uint8_t esc_index, int16_t& temp) const
 // get an individual motor's temperature in centi-degrees if available, returns true on success
 bool AP_ESC_Telem::get_motor_temperature(uint8_t esc_index, int16_t& temp) const
 {
-    if (esc_index >= ESC_TELEM_MAX_ESCS
+    if (esc_index >= ESC_TELEM_MAX_ESCS || esc_index >= configured_telem_escs
         || _telem_data[esc_index].stale()
         || !(_telem_data[esc_index].types & (AP_ESC_Telem_Backend::TelemetryType::MOTOR_TEMPERATURE | AP_ESC_Telem_Backend::TelemetryType::MOTOR_TEMPERATURE_EXTERNAL))) {
         return false;
@@ -240,7 +242,7 @@ bool AP_ESC_Telem::get_highest_motor_temperature(int16_t& temp) const
 {
     uint8_t valid_escs = 0;
 
-    for (uint8_t i = 0; i < ESC_TELEM_MAX_ESCS; i++) {
+    for (uint8_t i = 0; i < ESC_TELEM_MAX_ESCS && i < configured_telem_escs; i++) {
         int16_t temp_temp;
         if (get_motor_temperature(i, temp_temp)) {
             temp = MAX(temp, temp_temp);
@@ -254,7 +256,7 @@ bool AP_ESC_Telem::get_highest_motor_temperature(int16_t& temp) const
 // get an individual ESC's current in Ampere if available, returns true on success
 bool AP_ESC_Telem::get_current(uint8_t esc_index, float& amps) const
 {
-    if (esc_index >= ESC_TELEM_MAX_ESCS
+    if (esc_index >= ESC_TELEM_MAX_ESCS || esc_index >= configured_telem_escs
         || _telem_data[esc_index].stale()
         || !(_telem_data[esc_index].types & AP_ESC_Telem_Backend::TelemetryType::CURRENT)) {
         return false;
@@ -266,7 +268,7 @@ bool AP_ESC_Telem::get_current(uint8_t esc_index, float& amps) const
 // get an individual ESC's voltage in Volt if available, returns true on success
 bool AP_ESC_Telem::get_voltage(uint8_t esc_index, float& volts) const
 {
-    if (esc_index >= ESC_TELEM_MAX_ESCS
+    if (esc_index >= ESC_TELEM_MAX_ESCS || esc_index >= configured_telem_escs
         || _telem_data[esc_index].stale()
         || !(_telem_data[esc_index].types & AP_ESC_Telem_Backend::TelemetryType::VOLTAGE)) {
         return false;
@@ -278,7 +280,7 @@ bool AP_ESC_Telem::get_voltage(uint8_t esc_index, float& volts) const
 // get an individual ESC's energy consumption in milli-Ampere.hour if available, returns true on success
 bool AP_ESC_Telem::get_consumption_mah(uint8_t esc_index, float& consumption_mah) const
 {
-    if (esc_index >= ESC_TELEM_MAX_ESCS
+    if (esc_index >= ESC_TELEM_MAX_ESCS || esc_index >= configured_telem_escs
         || _telem_data[esc_index].stale()
         || !(_telem_data[esc_index].types & AP_ESC_Telem_Backend::TelemetryType::CONSUMPTION)) {
         return false;
@@ -290,7 +292,7 @@ bool AP_ESC_Telem::get_consumption_mah(uint8_t esc_index, float& consumption_mah
 // get an individual ESC's usage time in seconds if available, returns true on success
 bool AP_ESC_Telem::get_usage_seconds(uint8_t esc_index, uint32_t& usage_s) const
 {
-    if (esc_index >= ESC_TELEM_MAX_ESCS
+    if (esc_index >= ESC_TELEM_MAX_ESCS || esc_index >= configured_telem_escs
         || _telem_data[esc_index].stale()
         || !(_telem_data[esc_index].types & AP_ESC_Telem_Backend::TelemetryType::USAGE)) {
         return false;
@@ -506,7 +508,8 @@ void AP_ESC_Telem::update()
                 float rpm = 0.0f;
                 get_rpm(i, rpm);
                 float raw_rpm = 0.0f;
-                get_raw_rpm(i, raw_rpm);
+                raw_rpm = get_average_motor_frequency_hz();
+                //get_raw_rpm(i, raw_rpm);
 
                 // Write ESC status messages
                 //   id starts from 0
