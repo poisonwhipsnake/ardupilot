@@ -149,4 +149,7 @@ protected:
 
     // angle_p/pd boost multiplier
     AP_Float              _throttle_gain_boost;
+    AP_Float              _pitch_length;
+    AP_Float              _roll_length;
+    AP_Float              _yaw_length;
 };
