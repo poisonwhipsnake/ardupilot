@@ -324,7 +324,7 @@ float AC_PID::update_all_set_derivative(float target, float measurement, float d
         // calculate and filter derivative
         if (is_positive(dt)) {
             _target_derivative = (_target - target_last) / dt;
-            float derivative =_target_derivative - derivativeInput;
+            float derivative =(_kdff*_target_derivative) - derivativeInput;
             _derivative += get_filt_D_alpha(dt) * (derivative  - _derivative);
             
         }
