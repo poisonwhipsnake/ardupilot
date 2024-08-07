@@ -80,6 +80,17 @@ const AP_Param::GroupInfo AC_PID::var_info[] = {
     // @User: Advanced
     AP_GROUPINFO_FLAGS_DEFAULT_POINTER("D_FF", 14, AC_PID, _kdff, default_kdff),
 
+    AP_GROUPINFO("D_IN", 15, AC_PID, _kdin, 0),
+
+    AP_GROUPINFO("D_M", 16, AC_PID, _kdm, 0),
+
+    AP_GROUPINFO("FLTF", 17, AC_PID, _filt_F_hz, 100.0f),
+
+    AP_GROUPINFO("FLTI", 18, AC_PID, _filt_I_hz, 100.0f),
+
+    AP_GROUPINFO("FLTM", 19, AC_PID, _filt_M_hz, 100.0f),
+
+
 #if AP_FILTER_ENABLED
     // @Param: NTF
     // @DisplayName: PID Target notch filter index
@@ -280,7 +291,7 @@ float AC_PID::update_all(float target, float measurement, float dt, bool limit, 
 }
 
 
-float AC_PID::update_all_set_derivative(float target, float measurement, float dt, bool limit, float boost, float derivativeInput)
+float AC_PID::update_all_set_derivative(float target, float measurement, float dt, bool limit, float boost, float inputDerivative)
 {
     // don't process inf or NaN
     if (!isfinite(target) || !isfinite(measurement)) {
@@ -306,7 +317,7 @@ float AC_PID::update_all_set_derivative(float target, float measurement, float d
         }
 #endif
     } else {
-        //float error_last = _error;
+        float error_last = _error;
         float target_last = _target;
         float error = _target - measurement;
 #if AP_FILTER_ENABLED
@@ -323,33 +334,36 @@ float AC_PID::update_all_set_derivative(float target, float measurement, float d
 
         // calculate and filter derivative
         if (is_positive(dt)) {
-            _target_derivative = (_target - target_last) / dt;
-            float derivative =(_kdff*_target_derivative) - derivativeInput;
-            _derivative += get_filt_D_alpha(dt) * (derivative  - _derivative);
-            
+            float measuredDerivative = (_error - error_last) / dt;
+            float targetDerivative = (_target - target_last) / dt;
+            _inputDerivative += get_filt_I_alpha(dt) * (inputDerivative - _inputDerivative);
+            _measuredDerivative += get_filt_M_alpha(dt) * (measuredDerivative - _measuredDerivative);
+            _target_derivative += get_filt_T_alpha(dt) * (targetDerivative - _target_derivative);
         }
     }
 
     // update I term
     update_i(dt, limit);
 
+    _derivative = (_inputDerivative*_kdin) + (_measuredDerivative*_kdm) + (_target_derivative*_kdff);
+
     float P_out = (_error * _kp);
     float D_out = (_derivative * _kd);
 
     // calculate slew limit modifier for P+D
-    _pid_info.Dmod = _slew_limiter.modifier((_pid_info.P + _pid_info.D) * _slew_limit_scale, dt);
-    _pid_info.slew_rate = _slew_limiter.get_slew_rate();
+    //_pid_info.Dmod = _slew_limiter.modifier((_pid_info.P + _pid_info.D) * _slew_limit_scale, dt);
+    //_pid_info.slew_rate = _slew_limiter.get_slew_rate();
 
-    P_out *= _pid_info.Dmod;
-    D_out *= _pid_info.Dmod;
+    //P_out *= _pid_info.Dmod;
+    //D_out *= _pid_info.Dmod;
 
     // boost output if required
-    P_out *= boost;
-    D_out *= boost;
+    //P_out *= boost;
+    //D_out *= boost;
 
     _pid_info.PD_limit = false;
     // Apply PD sum limit if enabled
-    if (is_positive(_kpdmax)) {
+    /*if (is_positive(_kpdmax)) {
         const float PD_sum_abs = fabsf(P_out + D_out);
         if (PD_sum_abs > _kpdmax) {
             const float PD_scale = _kpdmax / PD_sum_abs;
@@ -358,14 +372,18 @@ float AC_PID::update_all_set_derivative(float target, float measurement, float d
             _pid_info.PD_limit = true;
         }
     }
+    */
 
     _pid_info.target = _target;
     _pid_info.actual = measurement;
     _pid_info.error = _error;
     _pid_info.P = P_out;
     _pid_info.D = D_out;
-    _pid_info.FF = _target * _kff;
-    _pid_info.DFF = _target_derivative;
+    _pid_info.FF = _inputDerivative* _kd;
+    _pid_info.DFF = _measuredDerivative* _kd;
+    _pid_info.Dmod = _target_derivative* _kd;
+    _pid_info.slew_rate = P_out + D_out;
+    
 
     return P_out + D_out + _integrator;
 }
@@ -498,6 +516,25 @@ float AC_PID::get_filt_D_alpha(float dt) const
 {
     return calc_lowpass_alpha_dt(dt, _filt_D_hz);
 }
+
+// get_filt_M_alpha - get the measurement filter alpha
+float AC_PID::get_filt_F_alpha(float dt) const
+{
+    return calc_lowpass_alpha_dt(dt, _filt_F_hz);
+}
+
+// get_filt_I_alpha - get the integral filter alpha
+float AC_PID::get_filt_I_alpha(float dt) const
+{
+    return calc_lowpass_alpha_dt(dt, _filt_I_hz);
+}
+
+// get_filt_M_alpha - get the measurement filter alpha
+float AC_PID::get_filt_M_alpha(float dt) const
+{
+    return calc_lowpass_alpha_dt(dt, _filt_M_hz);
+}
+
 
 void AC_PID::set_integrator(float integrator)
 {

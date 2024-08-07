@@ -117,6 +117,9 @@ public:
     float get_filt_T_alpha(float dt) const;
     float get_filt_E_alpha(float dt) const;
     float get_filt_D_alpha(float dt) const;
+    float get_filt_F_alpha(float dt) const;
+    float get_filt_I_alpha(float dt) const;
+    float get_filt_M_alpha(float dt) const;
 
     // set accessors
     void kP(const float v) { _kp.set(v); }
@@ -128,6 +131,9 @@ public:
     void filt_T_hz(const float v);
     void filt_E_hz(const float v);
     void filt_D_hz(const float v);
+    void filt_F_hz(const float v);
+    void filt_I_hz(const float v);
+    void filt_M_hz(const float v);
     void slew_limit(const float v);
     void kDff(const float v) { _kdff.set(v); }
 
@@ -168,8 +174,13 @@ protected:
     AP_Float _filt_T_hz;         // PID target filter frequency in Hz
     AP_Float _filt_E_hz;         // PID error filter frequency in Hz
     AP_Float _filt_D_hz;         // PID derivative filter frequency in Hz
+    AP_Float _filt_F_hz;         // PID target filter frequency in Hz
+    AP_Float _filt_I_hz;         // PID error filter frequency in Hz
+    AP_Float _filt_M_hz;         // PID derivative filter frequency in Hz
     AP_Float _slew_rate_max;
     AP_Float _kdff;
+    AP_Float _kdin;
+    AP_Float _kdm;
 #if AP_FILTER_ENABLED
     AP_Int8 _notch_T_filter;
     AP_Int8 _notch_E_filter;
@@ -194,6 +205,9 @@ protected:
     float _target;            // target value to enable filtering
     float _error;             // error value to enable filtering
     float _derivative;        // derivative value to enable filtering
+    float _measuredDerivative; //
+    float _inputDerivative; //
+    float _targetDerivative;
     int8_t _slew_limit_scale;
     float _target_derivative; // target derivative value to enable dff
 #if AP_FILTER_ENABLED
