@@ -700,10 +700,10 @@ void ModeGuided::set_encoder_based_angle(const Quaternion &attitude_quat, const 
     attitude_quat.to_euler(roll_rad, pitch_rad, yaw_rad);
 
 
-#if HAL_LOGGING_ENABLED
+//#if HAL_LOGGING_ENABLED
     // log target
-    copter.Log_Write_Guided_Attitude_Target(guided_mode, roll_rad, pitch_rad, yaw_rad, ang_vel, guided_angle_state.thrust, guided_angle_state.climb_rate_cms * 0.01);
-#endif
+    //copter.Log_Write_Guided_Attitude_Target(guided_mode, roll_rad, pitch_rad, yaw_rad, ang_vel, guided_angle_state.thrust, guided_angle_state.climb_rate_cms * 0.01);
+//#endif
 }
 
 // takeoff_run - takeoff in guided mode
@@ -982,17 +982,23 @@ void ModeGuided::angle_control_run()
     }
 
    
+    // convert quaternion to euler angles
+    float roll_rad, pitch_rad, yaw_rad;
+    guided_angle_state.encoder_reference_attitude_target.to_euler(roll_rad, pitch_rad, yaw_rad);
+
 
     if( guided_angle_state.using_encoder ) {
         // update the yaw target
         // get current vehicle attitude
-        Quaternion target_attitude = Quaternion(guided_angle_state.encoder_reference_attitude_target);
+        //Quaternion target_attitude = Quaternion(guided_angle_state.encoder_reference_attitude_target);
         
         float yaw_offset = copter.ahrs.get_yaw() -  radians(get_encoder_angle());
 
-        target_attitude.rotate(Vector3f(0, 0, yaw_offset));
+        //target_attitude.rotate(Vector3f(0, 0, yaw_offset));
 
-        guided_angle_state.attitude_quat = target_attitude;
+        yaw_rad += yaw_offset;
+
+        //guided_angle_state.attitude_quat = target_attitude;
         
 
 
@@ -1000,11 +1006,16 @@ void ModeGuided::angle_control_run()
                 attitude_control -> reset_rate_controller_I_terms_smoothly();
             
         }
-   
-
+        
+  
         
         
     }
+
+    #if HAL_LOGGING_ENABLED
+        // log target
+        copter.Log_Write_Guided_Attitude_Target(guided_mode, roll_rad, pitch_rad, yaw_rad, guided_angle_state.ang_vel, guided_angle_state.thrust, guided_angle_state.climb_rate_cms * 0.01);
+    #endif
 
     // check for timeout - set lean angles and climb rate to zero if no updates received for 3 seconds
     uint32_t tnow = millis();
@@ -1053,7 +1064,8 @@ void ModeGuided::angle_control_run()
     if (guided_angle_state.attitude_quat.is_zero()) {
         attitude_control->input_rate_bf_roll_pitch_yaw(ToDeg(guided_angle_state.ang_vel.x) * 100.0f, ToDeg(guided_angle_state.ang_vel.y) * 100.0f, ToDeg(guided_angle_state.ang_vel.z) * 100.0f);
     } else {
-        attitude_control->input_quaternion(guided_angle_state.attitude_quat, guided_angle_state.ang_vel);
+        //attitude_control->input_quaternion(guided_angle_state.attitude_quat, guided_angle_state.ang_vel);
+        attitude_control->input_euler_angle_roll_pitch_yaw(ToDeg(roll_rad) * 100.0f, ToDeg(pitch_rad) * 100.0f, ToDeg(yaw_rad) * 100.0f, false);
     }
 
     // call position controller
