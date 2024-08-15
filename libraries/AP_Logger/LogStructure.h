@@ -1284,6 +1284,12 @@ LOG_STRUCTURE_FROM_ESC_TELEM \
       "PIDY", PID_FMT,  PID_LABELS, PID_UNITS, PID_MULTS , true }, \
     { LOG_PIDA_MSG, sizeof(log_PID), \
       "PIDA", PID_FMT,  PID_LABELS, PID_UNITS, PID_MULTS , true }, \
+    { LOG_PIDRA_MSG, sizeof(log_PID), \
+      "PID1", PID_FMT,  PID_LABELS, PID_UNITS, PID_MULTS , true }, \
+    { LOG_PIDPA_MSG, sizeof(log_PID), \
+      "PID2", PID_FMT,  PID_LABELS, PID_UNITS, PID_MULTS , true }, \
+    { LOG_PIDYA_MSG, sizeof(log_PID), \
+      "PID3", PID_FMT,  PID_LABELS, PID_UNITS, PID_MULTS , true }, \
     { LOG_PIDS_MSG, sizeof(log_PID), \
       "PIDS", PID_FMT,  PID_LABELS, PID_UNITS, PID_MULTS , true }, \
     { LOG_PIDN_MSG, sizeof(log_PID), \
@@ -1373,6 +1379,10 @@ enum LogMessages : uint8_t {
     LOG_PIDR_MSG,
     LOG_PIDP_MSG,
     LOG_PIDY_MSG,
+    LOG_PIDRA_MSG,
+    LOG_PIDPA_MSG,
+    LOG_PIDYA_MSG,
+
     LOG_PIDA_MSG,
     LOG_PIDS_MSG,
     LOG_PIDN_MSG,

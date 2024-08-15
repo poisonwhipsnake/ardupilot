@@ -85,7 +85,7 @@ const AP_Param::GroupInfo AC_AttitudeControl::var_info[] = {
     // @Range: 3.000 12.000
     // @Range{Sub}: 0.0 12.000
     // @User: Standard
-    AP_SUBGROUPINFO(_p_angle_roll, "ANG_RLL_", 13, AC_AttitudeControl, AC_P),
+    AP_SUBGROUPINFO(_pid_angle_roll, "ANG_RLL_", 13, AC_AttitudeControl, AC_PID),
 
     // @Param: ANG_PIT_P
     // @DisplayName: Pitch axis angle controller P gain
@@ -93,7 +93,7 @@ const AP_Param::GroupInfo AC_AttitudeControl::var_info[] = {
     // @Range: 3.000 12.000
     // @Range{Sub}: 0.0 12.000
     // @User: Standard
-    AP_SUBGROUPINFO(_p_angle_pitch, "ANG_PIT_", 14, AC_AttitudeControl, AC_P),
+    AP_SUBGROUPINFO(_pid_angle_pitch, "ANG_PIT_", 14, AC_AttitudeControl, AC_PID),
 
     // @Param: ANG_YAW_P
     // @DisplayName: Yaw axis angle controller P gain
@@ -101,7 +101,7 @@ const AP_Param::GroupInfo AC_AttitudeControl::var_info[] = {
     // @Range: 3.000 12.000
     // @Range{Sub}: 0.0 6.000
     // @User: Standard
-    AP_SUBGROUPINFO(_p_angle_yaw, "ANG_YAW_", 15, AC_AttitudeControl, AC_P),
+    AP_SUBGROUPINFO(_pid_angle_yaw, "ANG_YAW_", 15, AC_AttitudeControl, AC_PID),
 
     // @Param: ANG_LIM_TC
     // @DisplayName: Angle Limit (to maintain altitude) Time Constant
@@ -152,6 +152,9 @@ const AP_Param::GroupInfo AC_AttitudeControl::var_info[] = {
 
 
     AP_GROUPINFO("I_RELAX_TC", 21, AC_AttitudeControl, _i_relax_tc, AC_ATTITUDE_RATE_RELAX_TC),
+
+
+
 
     AP_GROUPEND
 };
@@ -772,8 +775,8 @@ void AC_AttitudeControl::thrust_heading_rotation_angles(Quaternion& attitude_tar
 
     float heading_accel_max = constrain_float(get_accel_yaw_max_radss() / 2.0f, AC_ATTITUDE_ACCEL_Y_CONTROLLER_MIN_RADSS, AC_ATTITUDE_ACCEL_Y_CONTROLLER_MAX_RADSS);
     if (!is_zero(get_rate_yaw_pid().kP())) {
-        float heading_error_max = MIN(inv_sqrt_controller(1.0 / get_rate_yaw_pid().kP(), _p_angle_yaw.kP(), heading_accel_max), AC_ATTITUDE_YAW_MAX_ERROR_ANGLE);
-        if (!is_zero(_p_angle_yaw.kP()) && fabsf(attitude_error.z) > heading_error_max) {
+        float heading_error_max = MIN(inv_sqrt_controller(1.0 / get_rate_yaw_pid().kP(), _pid_angle_yaw.get_p(), heading_accel_max), AC_ATTITUDE_YAW_MAX_ERROR_ANGLE);
+        if (!is_zero(_pid_angle_yaw.get_p()) && fabsf(attitude_error.z) > heading_error_max) {
             attitude_error.z = constrain_float(wrap_PI(attitude_error.z), -heading_error_max, heading_error_max);
             heading_vec_correction_quat.from_axis_angle(Vector3f{0.0f, 0.0f, attitude_error.z});
             attitude_target = attitude_body * thrust_vector_correction * heading_vec_correction_quat;
@@ -839,6 +842,7 @@ float AC_AttitudeControl::input_shaping_angle(float error_angle, float input_tc,
 {
     // Calculate the velocity as error approaches zero with acceleration limited by accel_max_radss
     desired_ang_vel += sqrt_controller(error_angle, 1.0f / MAX(input_tc, 0.01f), accel_max, dt);
+
     if (is_positive(max_ang_vel)) {
         desired_ang_vel = constrain_float(desired_ang_vel, -max_ang_vel, max_ang_vel);
     }
@@ -874,8 +878,8 @@ void AC_AttitudeControl::input_shaping_rate_predictor(const Vector2f &error_angl
         target_ang_vel.x = input_shaping_angle(wrap_PI(error_angle.x), _input_tc, get_accel_roll_max_radss(), target_ang_vel.x, dt);
         target_ang_vel.y = input_shaping_angle(wrap_PI(error_angle.y), _input_tc, get_accel_pitch_max_radss(), target_ang_vel.y, dt);
     } else {
-        const float angleP_roll = _p_angle_roll.kP() * _angle_P_scale.x;
-        const float angleP_pitch = _p_angle_pitch.kP() * _angle_P_scale.y;
+        const float angleP_roll = _pid_angle_roll.get_p() * _angle_P_scale.x;
+        const float angleP_pitch = _pid_angle_pitch.get_p() * _angle_P_scale.y;
         target_ang_vel.x = angleP_roll * wrap_PI(error_angle.x);
         target_ang_vel.y = angleP_pitch * wrap_PI(error_angle.y);
     }
@@ -1017,15 +1021,18 @@ Vector3f AC_AttitudeControl::update_ang_vel_target_from_att_error(const Vector3f
     Vector3f rate_target_ang_vel;
 
     // Compute the roll angular velocity demand from the roll angle error
-    const float angleP_roll = _p_angle_roll.kP() * _angle_P_scale.x;
+    /*
+    const float angleP_roll = _pid_angle_roll.get_p() * _angle_P_scale.x;
     if (_use_sqrt_controller && !is_zero(get_accel_roll_max_radss())) {
         rate_target_ang_vel.x = sqrt_controller(attitude_error_rot_vec_rad.x, angleP_roll, constrain_float(get_accel_roll_max_radss() / 2.0f, AC_ATTITUDE_ACCEL_RP_CONTROLLER_MIN_RADSS, AC_ATTITUDE_ACCEL_RP_CONTROLLER_MAX_RADSS), _dt);
+    
     } else {
-        rate_target_ang_vel.x = angleP_roll * attitude_error_rot_vec_rad.x;
+        //rate_target_ang_vel.x = angleP_roll * attitude_error_rot_vec_rad.x;
+       
     }
 
     // Compute the pitch angular velocity demand from the pitch angle error
-    const float angleP_pitch = _p_angle_pitch.kP() * _angle_P_scale.y;
+    const float angleP_pitch = _pid_angle_pitch.get_p() * _angle_P_scale.y;
     if (_use_sqrt_controller && !is_zero(get_accel_pitch_max_radss())) {
         rate_target_ang_vel.y = sqrt_controller(attitude_error_rot_vec_rad.y, angleP_pitch, constrain_float(get_accel_pitch_max_radss() / 2.0f, AC_ATTITUDE_ACCEL_RP_CONTROLLER_MIN_RADSS, AC_ATTITUDE_ACCEL_RP_CONTROLLER_MAX_RADSS), _dt);
     } else {
@@ -1033,12 +1040,17 @@ Vector3f AC_AttitudeControl::update_ang_vel_target_from_att_error(const Vector3f
     }
 
     // Compute the yaw angular velocity demand from the yaw angle error
-    const float angleP_yaw = _p_angle_yaw.kP() * _angle_P_scale.z;
+    const float angleP_yaw = _pid_angle_yaw.get_p() * _angle_P_scale.z;
     if (_use_sqrt_controller && !is_zero(get_accel_yaw_max_radss())) {
         rate_target_ang_vel.z = sqrt_controller(attitude_error_rot_vec_rad.z, angleP_yaw, constrain_float(get_accel_yaw_max_radss() / 2.0f, AC_ATTITUDE_ACCEL_Y_CONTROLLER_MIN_RADSS, AC_ATTITUDE_ACCEL_Y_CONTROLLER_MAX_RADSS), _dt);
     } else {
         rate_target_ang_vel.z = angleP_yaw * attitude_error_rot_vec_rad.z;
     }
+    */
+
+    rate_target_ang_vel.x = _pid_angle_roll.update_all(0,-attitude_error_rot_vec_rad.x,_dt);
+    rate_target_ang_vel.y = _pid_angle_pitch.update_all(0,-attitude_error_rot_vec_rad.y,_dt);
+    rate_target_ang_vel.z = _pid_angle_pitch.update_all(0,-attitude_error_rot_vec_rad.z,_dt);
 
     // reset angle P scaling, saving used value
     _angle_P_scale_used = _angle_P_scale;
@@ -1125,6 +1137,7 @@ bool AC_AttitudeControl::pre_arm_checks(const char *param_prefix,
                                         const uint8_t failure_msg_len)
 {
     // validate AC_P members:
+    /*
     const struct {
         const char *pid_name;
         AC_P &p;
@@ -1140,6 +1153,7 @@ bool AC_AttitudeControl::pre_arm_checks(const char *param_prefix,
             return false;
         }
     }
+    */
 
     // validate AC_PID members:
     const struct {

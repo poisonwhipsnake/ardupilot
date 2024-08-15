@@ -9,6 +9,7 @@
 #include <AP_AHRS/AP_AHRS_View.h>
 #include <AP_Motors/AP_Motors.h>
 #include <AC_PID/AC_PID.h>
+#include <AC_PID/AC_PID_Basic.h>
 #include <AC_PID/AC_P.h>
 #include <AP_Vehicle/AP_MultiCopter.h>
 
@@ -49,9 +50,9 @@ public:
     AC_AttitudeControl( AP_AHRS_View &ahrs,
                         const AP_MultiCopter &aparm,
                         AP_Motors& motors) :
-        _p_angle_roll(AC_ATTITUDE_CONTROL_ANGLE_P),
-        _p_angle_pitch(AC_ATTITUDE_CONTROL_ANGLE_P),
-        _p_angle_yaw(AC_ATTITUDE_CONTROL_ANGLE_P),
+        _pid_angle_roll(1,0,0,0,10,100,100,10),
+        _pid_angle_pitch(1,0,0,0,10,100,100,10),
+        _pid_angle_yaw(1,0,0,0,10,100,100,10),
         _angle_boost(0),
         _use_sqrt_controller(true),
         _throttle_rpy_mix_desired(AC_ATTITUDE_CONTROL_THR_MIX_DEFAULT),
@@ -78,9 +79,9 @@ public:
     float get_dt() const { return _dt; }
 
     // pid accessors
-    AC_P& get_angle_roll_p() { return _p_angle_roll; }
-    AC_P& get_angle_pitch_p() { return _p_angle_pitch; }
-    AC_P& get_angle_yaw_p() { return _p_angle_yaw; }
+    AC_PID& get_angle_roll_p() { return _pid_angle_roll; }
+    AC_PID& get_angle_pitch_p() { return _pid_angle_pitch; }
+    AC_PID& get_angle_yaw_p() { return _pid_angle_yaw; }
     virtual AC_PID& get_rate_roll_pid() = 0;
     virtual AC_PID& get_rate_pitch_pid() = 0;
     virtual AC_PID& get_rate_yaw_pid() = 0;
@@ -263,13 +264,13 @@ public:
     float max_rate_step_bf_yaw();
 
     // Return roll step size in radians that results in maximum output after 4 time steps
-    float max_angle_step_bf_roll() { return max_rate_step_bf_roll() / _p_angle_roll.kP(); }
+    float max_angle_step_bf_roll() { return max_rate_step_bf_roll() / _pid_angle_roll.kP(); }
 
     // Return pitch step size in radians that results in maximum output after 4 time steps
-    float max_angle_step_bf_pitch() { return max_rate_step_bf_pitch() / _p_angle_pitch.kP(); }
+    float max_angle_step_bf_pitch() { return max_rate_step_bf_pitch() / _pid_angle_pitch.kP(); }
 
     // Return yaw step size in radians that results in maximum output after 4 time steps
-    float max_angle_step_bf_yaw() { return max_rate_step_bf_yaw() / _p_angle_yaw.kP(); }
+    float max_angle_step_bf_yaw() { return max_rate_step_bf_yaw() / _pid_angle_yaw.kP(); }
 
     // Return angular velocity in radians used in the angular velocity controller
     Vector3f rate_bf_targets() const { return _ang_vel_body + _sysid_ang_vel_body; }
@@ -451,9 +452,9 @@ protected:
     AP_Int8             _angle_boost_enabled;
 
     // angle controller P objects
-    AC_P                _p_angle_roll;
-    AC_P                _p_angle_pitch;
-    AC_P                _p_angle_yaw;
+    AC_PID                _pid_angle_roll;
+    AC_PID                _pid_angle_pitch;
+    AC_PID                _pid_angle_yaw;
 
     // Angle limit time constant (to maintain altitude)
     AP_Float            _angle_limit_tc;

@@ -80,6 +80,11 @@ void Copter::Log_Write_PIDS()
         logger.Write_PID(LOG_PIDR_MSG, attitude_control->get_rate_roll_pid().get_pid_info());
         logger.Write_PID(LOG_PIDP_MSG, attitude_control->get_rate_pitch_pid().get_pid_info());
         logger.Write_PID(LOG_PIDY_MSG, attitude_control->get_rate_yaw_pid().get_pid_info());
+        
+        logger.Write_PID(LOG_PIDRA_MSG, attitude_control->get_angle_roll_p().get_pid_info());
+        logger.Write_PID(LOG_PIDPA_MSG, attitude_control->get_angle_pitch_p().get_pid_info());
+        logger.Write_PID(LOG_PIDYA_MSG, attitude_control->get_angle_yaw_p().get_pid_info());
+        
         logger.Write_PID(LOG_PIDA_MSG, pos_control->get_accel_z_pid().get_pid_info() );
         if (should_log(MASK_LOG_NTUN) && (flightmode->requires_GPS() || landing_with_GPS())) {
             logger.Write_PID(LOG_PIDN_MSG, pos_control->get_vel_xy_pid().get_pid_info_x());
