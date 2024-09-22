@@ -9,7 +9,6 @@
 #include <AP_AHRS/AP_AHRS_View.h>
 #include <AP_Motors/AP_Motors.h>
 #include <AC_PID/AC_PID.h>
-#include <AC_PID/AC_PID_Basic.h>
 #include <AC_PID/AC_P.h>
 #include <AP_Vehicle/AP_MultiCopter.h>
 
@@ -50,9 +49,6 @@ public:
     AC_AttitudeControl( AP_AHRS_View &ahrs,
                         const AP_MultiCopter &aparm,
                         AP_Motors& motors) :
-        _pid_angle_roll(1,0,0,0,10,100,100,10),
-        _pid_angle_pitch(1,0,0,0,10,100,100,10),
-        _pid_angle_yaw(1,0,0,0,10,100,100,10),
         _angle_boost(0),
         _use_sqrt_controller(true),
         _throttle_rpy_mix_desired(AC_ATTITUDE_CONTROL_THR_MIX_DEFAULT),
@@ -452,9 +448,48 @@ protected:
     AP_Int8             _angle_boost_enabled;
 
     // angle controller P objects
-    AC_PID                _pid_angle_roll;
-    AC_PID                _pid_angle_pitch;
-    AC_PID                _pid_angle_yaw;
+    AC_PID                _pid_angle_roll{
+        AC_PID::Defaults{
+            .p         = 1.0f,
+            .i         = 0.0f,
+            .d         = 0.0f,
+            .ff        = 0.0f,
+            .imax      = 0.5f,
+            .filt_T_hz = 0.0f,
+            .filt_E_hz = 0.0f,
+            .filt_D_hz = 0.0f,
+            .srmax     = 0,
+            .srtau     = 1.0
+        }
+    };
+    AC_PID                _pid_angle_pitch{
+        AC_PID::Defaults{
+            .p         = 1.0f,
+            .i         = 0.0f,
+            .d         = 0.0f,
+            .ff        = 0.0f,
+            .imax      = 0.5f,
+            .filt_T_hz = 0.0f,
+            .filt_E_hz = 0.0f,
+            .filt_D_hz = 0.0f,
+            .srmax     = 0,
+            .srtau     = 1.0
+        }
+    };
+    AC_PID                _pid_angle_yaw{
+        AC_PID::Defaults{
+            .p         = 1.0f,
+            .i         = 0.0f,
+            .d         = 0.0f,
+            .ff        = 0.0f,
+            .imax      = 0.5f,
+            .filt_T_hz = 0.0f,
+            .filt_E_hz = 0.0f,
+            .filt_D_hz = 0.0f,
+            .srmax     = 0,
+            .srtau     = 1.0
+        }
+    };
 
     // Angle limit time constant (to maintain altitude)
     AP_Float            _angle_limit_tc;

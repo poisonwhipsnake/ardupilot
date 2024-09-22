@@ -724,6 +724,8 @@ void AC_AttitudeControl::attitude_controller_run_quat()
     // Compute the angular velocity corrections in the body frame from the attitude error
     _ang_vel_body = update_ang_vel_target_from_att_error(attitude_error);
 
+    
+
     // ensure angular velocity does not go over configured limits
     ang_vel_limit(_ang_vel_body, radians(_ang_vel_roll_max), radians(_ang_vel_pitch_max), radians(_ang_vel_yaw_max));
 
@@ -1050,7 +1052,7 @@ Vector3f AC_AttitudeControl::update_ang_vel_target_from_att_error(const Vector3f
 
     rate_target_ang_vel.x = _pid_angle_roll.update_all(0,-attitude_error_rot_vec_rad.x,_dt);
     rate_target_ang_vel.y = _pid_angle_pitch.update_all(0,-attitude_error_rot_vec_rad.y,_dt);
-    rate_target_ang_vel.z = _pid_angle_pitch.update_all(0,-attitude_error_rot_vec_rad.z,_dt);
+    rate_target_ang_vel.z = _pid_angle_yaw.update_all(0,-attitude_error_rot_vec_rad.z,_dt);
 
     // reset angle P scaling, saving used value
     _angle_P_scale_used = _angle_P_scale;
