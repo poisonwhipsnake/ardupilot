@@ -52,7 +52,19 @@ Location::Location(const Vector3f &ekf_offset_neu, AltFrame frame)
         offset(ekf_offset_neu.x * 0.01, ekf_offset_neu.y * 0.01);
     }
 }
-#endif  // AP_AHRS_ENABLED
+
+void Location::clone(const Location &clone){
+    lat = clone.lat;
+    lng = clone.lng;
+    alt = clone.alt;
+    relative_alt = clone.relative_alt;           // 1 if altitude is relative to home
+    loiter_ccw   =clone.loiter_ccw;           // 0 if clockwise, 1 if counter clockwise
+    terrain_alt  = clone.terrain_alt;           // this altitude is above terrain
+    origin_alt   = clone.origin_alt;           // this altitude is above ekf origin
+    loiter_xtrack = clone.loiter_xtrack;          // 0 to crosstrack from center of waypoint, 1 to crosstrack from tangent exit location
+}
+
+
 
 void Location::set_alt_cm(int32_t alt_cm, AltFrame frame)
 {
@@ -452,6 +464,7 @@ float Location::line_path_proportion(const Location &point1, const Location &poi
     return (vec1 * vec2) / dsquared;
 }
 
+
 /*
   wrap longitude for -180e7 to 180e7
  */
@@ -504,4 +517,84 @@ void Location::linearly_interpolate_alt(const Location &point1, const Location &
 {
     // new target's distance along the original track and then linear interpolate between the original origin and destination altitudes
     set_alt_cm(point1.alt + (point2.alt - point1.alt) * constrain_float(line_path_proportion(point1, point2), 0.0f, 1.0f), point2.get_alt_frame());
+}
+
+
+void Location::calc_orbit_turn_centre(
+    const struct Location &previous_wp,
+    const struct Location &current_loc,
+    const struct Location &turn_WP,
+    const struct Location &next_WP,
+    AP_Float ground_turn_radius,
+    AP_Float ground_turn_early_initiation,
+    Location &out_turn_centre,
+    Vector3f &out_turn_vector,
+    int8_t &out_turn_direction,
+    float &out_groundspeed_heading_1,
+    float &out_groundspeed_heading_2,
+    Vector2f &out_turn_start_dist)
+{
+    // If you have ticked off a waypoint, you are either currently turning on to the track between that ticked off waypoint and the next, or are travelling along that track.
+    Vector2f Current_Track_Full = previous_wp.get_distance_NE(turn_WP);     // Linear track between last ticked off WP and next. Is the track to turn onto when completing a turn
+    Vector2f Next_Track_Full = turn_WP.get_distance_NE(next_WP);            // Linear track between the next WP and the one after - is used for
+    Vector2f Current_Track = Current_Track_Full.normalized();               // Unit vector of "current track"
+    Vector2f Next_Track = Next_Track_Full.normalized();                     // Unit vector of "next track"
+    Vector3f Current_Vector = Vector3f(Current_Track_Full.x,Current_Track_Full.y,(turn_WP.alt-previous_wp.alt)/100.0f); ////I think this assumes the WP have the same height reference frame
+    Vector3f Next_Vector = Vector3f(Next_Track_Full.x,Next_Track_Full.y,(next_WP.alt - turn_WP.alt)/100.0f); ////I think this assumes the WP have the same height reference frame
+
+
+    float _groundspeed_heading_1 = atan2f(Current_Track.y,Current_Track.x); // The ground-frame heading that is parallel to the "current track" - ideally colinear if the turn tune is working. Used for turn exit calcs.
+    float _groundspeed_heading_2 = atan2f(Next_Track.y,Next_Track.x);       // The ground-frame heading that is parallel to the "next track" - ideally colinear if the turn tune is working. Used for turn entry calcs.
+
+    float _ground_turn_angle = wrap_2PI(_groundspeed_heading_2-_groundspeed_heading_1+ M_PI)- M_PI; // The ground-frame angle of the turn ahead (between current and next tracks). Used for turn entry calcs.
+    float turn_distance = tanf(abs(_ground_turn_angle/2))*ground_turn_radius;                      // Linear distance away from WP to begin the turn to maintain the parameterised circular ground track of radius 'ground_turn_radius'
+    float current_angle_to_track = Current_Track.angle(current_loc.get_distance_NE(turn_WP));       // Assuming tracking with a heading towards 'next WP', find your current track angle compared to the desired 'current_track'. Used for tuning turn entry.
+
+
+    // Return distance away from WP that the turn should be initiated considering our angle to the desired approach track, the calculated turn distance required, plus an early initiation tunable parameter.
+    Vector2f turn_start_dist = (current_loc.get_distance_NE(turn_WP).normalized()/cosf(current_angle_to_track))*(turn_distance+ground_turn_early_initiation);
+
+
+    int8_t potential_turn_direction = -1;   // Direction of turn, positive is clockwise
+    Location potential_turn_centre;
+    Vector2f centre_from_turn_WP = -Current_Track*turn_distance + Vector2f(Current_Track.y,-Current_Track.x)*ground_turn_radius;   // Centre of the ground frame turn circle
+
+    // If the ground turn is in the clockwise direction, calculate the centre of ground frame turn for the new case.
+    // (This can be consolidated with a rotational matrix with the angle of rotation being sgn(_gta)*pi)
+    if(_ground_turn_angle>0){
+        centre_from_turn_WP = -Current_Track*turn_distance + Vector2f(-Current_Track.y,Current_Track.x)*ground_turn_radius;
+        potential_turn_direction = 1;
+    }
+
+    // Generate a z component of the turn via cross product to account for turns that aren't level
+    Vector3f potential_turn_vector = (Current_Vector%Next_Vector).normalized();
+    // Ensure the z component of the turn is always pointing up
+    if(potential_turn_vector.z <0.0f){
+        potential_turn_vector = -potential_turn_vector;
+    }
+
+    // Unit vector from the turn centre in the direction of the turn WP. Marks the angle of halfway through the turn.
+    Vector2f WPFromCentreNormalised = -centre_from_turn_WP.normalized();
+
+    // The desired angle of the normal vector component of the turn. ie. a flat turn will have a desiredAngle of 0deg.
+    // A turn where the midpoint is lower than the entry/exit will have a negative desired angle
+    float desiredAngle = asinf( Vector2f(potential_turn_vector.x,potential_turn_vector.y)*WPFromCentreNormalised);
+
+    // Height of the WP compared to centre of the planned ground-frame turn (this will be applied as an offset to the ground turn)
+    float heightOffset = tanf(desiredAngle)*centre_from_turn_WP.length();
+
+    potential_turn_centre.clone(turn_WP);                                                       // set potential_turn_centre to the WP location
+    potential_turn_centre.offset(centre_from_turn_WP.x,centre_from_turn_WP.y);                  // move potential_turn_centre in the N, E plane by the calculated offsets for correct ground frame tracking
+    potential_turn_centre.set_alt_cm(turn_WP.alt + (heightOffset*100),turn_WP.get_alt_frame()); // move potential_turn_centre in the Z(D) plane by the height offset by the calculated height offset to ensure we climb/descend in turn
+
+    // Need to return potential turn centre, potential turn direction, ground speed heading 1/2 and return value
+
+    out_turn_centre = potential_turn_centre,
+    out_turn_vector = potential_turn_vector,
+    out_turn_direction = potential_turn_direction,
+    out_groundspeed_heading_1 = _groundspeed_heading_1,
+    out_groundspeed_heading_2 = _groundspeed_heading_2,
+    out_turn_start_dist = turn_start_dist;
+
+    return;
 }

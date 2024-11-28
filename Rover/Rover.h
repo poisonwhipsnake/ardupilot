@@ -41,6 +41,7 @@
 #include <AP_Mission/AP_Mission.h>
 #include <AP_Mission/AP_Mission_ChangeDetector.h>
 #include <AR_WPNav/AR_WPNav_OA.h>
+#include <AR_WPNav/AR_WPNav_L1.h>
 #include <AP_OpticalFlow/AP_OpticalFlow.h>
 #include <AC_PrecLand/AC_PrecLand_config.h>
 #include <AP_Follow/AP_Follow_config.h>

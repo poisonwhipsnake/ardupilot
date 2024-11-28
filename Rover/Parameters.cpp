@@ -619,7 +619,7 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
 
     // @Group: WP_
     // @Path: ../libraries/AR_WPNav/AR_WPNav.cpp
-    AP_SUBGROUPINFO(wp_nav, "WP_", 43, ParametersG2, AR_WPNav_OA),
+    AP_SUBGROUPINFO(wp_nav, "WP_", 43, ParametersG2, AR_WPNav_L1),
 
     // @Group: SAIL_
     // @Path: sailboat.cpp
@@ -762,7 +762,7 @@ ParametersG2::ParametersG2(void)
 #endif
     windvane(),
     pos_control(attitude_control),
-    wp_nav(attitude_control, pos_control),
+    wp_nav(rover.ahrs,attitude_control, pos_control),
     sailboat()
 {
     AP_Param::setup_object_defaults(this, var_info);
