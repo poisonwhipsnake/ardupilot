@@ -353,6 +353,7 @@ bool ModeAuto::set_desired_speed(float speed)
 {
     switch (_submode) {
     case SubMode::WP:
+        return g2.wp_nav.set_waypoint_speed(speed);
     case SubMode::Stop:
         return g2.wp_nav.set_speed_max(speed);
     case SubMode::HeadingAndSpeed:
@@ -734,14 +735,15 @@ bool ModeAuto::do_nav_wp(const AP_Mission::Mission_Command& cmd, bool always_sto
 {
     // retrieve and sanitize target location
     Location cmdloc = cmd.content.location;
+    float param1 = cmd.p1 == 0 ? g2.wp_nav.get_default_speed() : cmd.p1;
     cmdloc.sanitize(rover.current_loc);
 
     // delayed stored in p1 in seconds
-    loiter_duration = ((int16_t) cmd.p1 < 0) ? 0 : cmd.p1;
-    loiter_start_time = 0;
-    if (loiter_duration > 0) {
-        always_stop_at_destination = true;
-    }
+    //loiter_duration = ((int16_t) cmd.p1 < 0) ? 0 : cmd.p1;
+    //loiter_start_time = 0;
+    //if (loiter_duration > 0) {
+    //    always_stop_at_destination = true;
+    //}
 
     // do not add next wp if there are no more navigation commands
     AP_Mission::Mission_Command next_cmd;
@@ -757,6 +759,7 @@ bool ModeAuto::do_nav_wp(const AP_Mission::Mission_Command& cmd, bool always_sto
         if (!set_desired_location(cmdloc, next_cmdloc)) {
             return false;
         }
+        set_desired_speed(param1);
     }
 
     // just starting so we haven't previously reached the waypoint

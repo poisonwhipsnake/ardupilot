@@ -19,6 +19,10 @@ public:
     // update navigation
     void update(float dt);
 
+    void overRideTurnRate(float turn_rate_rads);
+
+    void overRideSpeed(float speed);
+
     // true if update has been called recently
     bool is_active() const;
 
@@ -127,6 +131,11 @@ private:
     float _desired_speed;           // desired forward_back speed in m/s
     float _desired_turn_rate_rads;  // desired turn-rate in rad/sec (negative is counter clockwise, positive is clockwise)
     float _desired_lat_accel;       // desired lateral acceleration (for reporting only)
+
+    float _override_turn_rate_rads;
+    float _override_speed_ms;
+    bool _override_turn_rate;
+    bool _override_speed;
 
     // ekf reset handling
     uint32_t _ekf_xy_reset_ms;      // system time of last recorded ekf xy position reset

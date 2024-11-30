@@ -13,6 +13,10 @@ public:
     }
 
 
+    bool set_waypoint_speed(float speed) override;
+
+
+    void init(float speed_max = 0) override;
 
     // update navigation
     void update(float dt) override;
@@ -21,8 +25,6 @@ public:
     // next_destination should be provided if known to allow smooth cornering
     bool set_desired_location(const Location &destination, Location next_destination = Location()) override WARN_IF_UNUSED;
 
-    // true if vehicle has reached desired location. defaults to true because this is normally used by missions and we do not want the mission to become stuck
-    bool reached_destination() const override;
 
         /* Do not allow copies */
     AR_WPNav_L1(const AR_WPNav_L1 &other) = delete;
@@ -30,15 +32,18 @@ public:
 
     /* see AP_Navigation.h for the definitions and units of these
      * functions */
-    int32_t nav_roll_cd(void) const ;
-    int32_t nav_roll_cd_special(float _amax, float _rmax, float _trimspeed, float _minspeed, Location current) ;
+    //int32_t nav_roll_cd(void) const ;
+    //int32_t nav_roll_cd_special(float _amax, float _rmax, float _trimspeed, float _minspeed, Location current) ;
+
+    float nav_steering_angle(float groundspeed, float wheelbase, float _steering_angle_max, float _steering_angle_max_rate, float _steering_angle_max_accel, float turn_radius) ;
+    
     float lateral_acceleration(void) const ;
 
     void reset(void) ;
     uint8_t turn_around_ok(void) const  {return turn_around_allowed;}
     uint8_t divert_ok(void) const  {return divert_allowed;}
 
-    uint8_t orbit_ok(void) const  {return orbit_allowed;}
+    //uint8_t orbit_ok(void) const  {return orbit_allowed;}
 
     // return the desired track heading angle(centi-degrees)
     int32_t nav_bearing_cd(void) const ;
@@ -54,45 +59,48 @@ public:
     float nav_bearing(void) const  { return _nav_bearing;}
     float crosstrack_velo(void) const ;
 
-    virtual bool loiter_for_turn(void) const  { return _loiter_turn_state != LOITER_NONE || !_initial_turn_complete; }
-    virtual bool loiter_for_orbit(void) const  { return _loiter_turn_state >= LOITER_ORBIT; }
-    virtual bool loiter_for_turnaround(void) const  { return _loiter_turn_state == LOITER_TURNAROUND_1 || _loiter_turn_state == LOITER_TURNAROUND_2; }
-    virtual bool loiter_for_turnaround2(void) const  { return _loiter_turn_state == LOITER_TURNAROUND_2; }
+    //virtual bool loiter_for_turn(void) const  { return _loiter_turn_state != LOITER_NONE || !_initial_turn_complete; }
+    //virtual bool loiter_for_orbit(void) const  { return _loiter_turn_state >= LOITER_ORBIT; }
+    //virtual bool loiter_for_turnaround(void) const  { return _loiter_turn_state == LOITER_TURNAROUND_1 || _loiter_turn_state == LOITER_TURNAROUND_2; }
+    //virtual bool loiter_for_turnaround2(void) const  { return _loiter_turn_state == LOITER_TURNAROUND_2; }
 
     float crosstrack_error_integrator(void) const  { return _L1_xtrack_i; }
 
     int32_t target_bearing_cd(void) const ;
-    Location get_loiter_location(void) const  {return loiter_point;}
-    Vector3f get_loiter_vector(void) const  {return loiter_vector;}
-    Vector3f get_auto_turn_vector(void) const  {return auto_turn_vector;}
+    //Location get_loiter_location(void) const  {return loiter_point;}
+    //Vector3f get_loiter_vector(void) const  {return loiter_vector;}
+    //Vector3f get_auto_turn_vector(void) const  {return auto_turn_vector;}
     Location get_auto_turn_centre(void) const  {return auto_turn_centre;}
-    int8_t get_loiter_direction(void) const  {return _loiter_side;}
-    float get_loiter_radius(void) const  {return _loiter_radius;}
-    float get_loiter_exit_angle_remaining(void) const {return (wrap_2PI(auto_turn_exit_track-(atan2f(_ahrs.groundspeed_vector().y,_ahrs.groundspeed_vector().x))+ M_PI) - M_PI) * auto_turn_clockwise;}
+    //int8_t get_loiter_direction(void) const  {return _loiter_side;}
+    //float get_loiter_radius(void) const  {return _loiter_radius;}
+    //float get_loiter_exit_angle_remaining(void) const {return (wrap_2PI(auto_turn_exit_track-(atan2f(_ahrs.groundspeed_vector().y,_ahrs.groundspeed_vector().x))+ M_PI) - M_PI) * auto_turn_clockwise;}
 
     float get_intercept_tolerance (void) const  {return _max_auto_point_distance ;}
-    float turn_distance(float wp_radius) const ;
-    float turn_distance(float groundspeed, float turn_angle) const ;
-    Vector2f turn_distance_special(const struct Location &prev_wp, const struct Location &current_loc,const struct Location &turn_WP, const struct Location &next_WP, const float roll_rate, const float roll_accel, float _trimspeed, float _minspeed, float current_roll) ;//const override;
-    Vector2f turn_distance_air_frame( const struct Location &current_loc,const struct Location &turn_WP, const struct Location &next_WP, const float roll_rate, const float roll_accel, float _trimspeed, float _minspeed, float current_roll) ;//const;
+    //float turn_distance(float wp_radius) const ;
+    //float turn_distance(float groundspeed, float turn_angle) const ;
+    //Vector2f turn_distance_special(const struct Location &prev_wp, const struct Location &current_loc,const struct Location &turn_WP, const struct Location &next_WP, const float roll_rate, const float roll_accel, float _trimspeed, float _minspeed, float current_roll) ;//const override;
     Vector2f turn_distance_ground_frame( const struct Location &prev_wp,const struct Location &current_loc,const struct Location &turn_WP, const struct Location &next_WP, float _trimspeed) ;//const;
 
+    /*
     enum LoiterTurnState {
         LOITER_NONE,            // Not in a loiter state
         LOITER_ORBIT,           // Currently in an orbit state
         LOITER_TURNAROUND_1,    // Currently in the first stage of turnaround (270deg turn in the orbit direction)
         LOITER_TURNAROUND_2     // Currently in the second stage of turnaround (90deg turn opposite the orbit direction to reintercept)
     };
+    */
 
     Vector2f get_airspeed_from_wind_ground(const Vector2f wind, const Vector2f ground, float airspeed) const;
 
-    float loiter_radius (const float loiter_radius) const ;
+    //float loiter_radius (const float loiter_radius) const ;
     void update_waypoint(const struct Location &prev_WP, const struct Location &next_WP, float dist_min = 0.0f) ;
     void update_waypoint_straight(const struct Location &prev_WP, const struct Location &next_WP, float dist_min) ;
     void update_loiter(const struct Location &center_WP, float radius, int8_t loiter_direction) ;
     void update_heading_hold(int32_t navigation_heading_cd) ;
     void ground_risk_exclusion_event_trigger();
-    void update_level_flight(void) ;
+
+    void update_speed_demand(float dt);
+    //void update_level_flight(void) ;
     bool reached_loiter_target(void) ;
 
     int8_t get_current_nav_type(void)  {return _current_nav_type;}
@@ -178,6 +186,9 @@ private:
 
     float _crosstrack_velo_portion;
 
+    float _steering_position;
+    float _steering_rate;
+
     AP_Float _emergency_land_deceleration;
 
     AP_Float _ground_risk_filter_tc;
@@ -218,30 +229,40 @@ private:
     int32_t previous_roll_cd;
     int32_t previous_roll_update_time;
     AP_Int8 _Turn_Frame_Type;                       // 0 = constant radius in air frame, 1 = constant radius in ground frame"
-    AP_Int8 _loiter_side;
-    AP_Int8 _use_loiter_vector_alt;
-    AP_Float _loiter_radius;
+    //AP_Int8 _loiter_side;
+    //AP_Int8 _use_loiter_vector_alt;
+    //AP_Float _loiter_radius;
     AP_Float _max_auto_point_distance;
     AP_Float _ground_turn_radius;
     AP_Float _ground_turn_correction_factor;
     AP_Float _ground_turn_early_initiation;
+    AP_Float _steering_angle_max_param;
+    AP_Float _speed_max_param;
+    AP_Float _accel_max;
+    AP_Float _decel_max;
+    AP_Float _turn_lateral_G;
+
+    AP_Float _steering_angle_velocity_param;
+    AP_Float _steering_angle_acceleration_param;
+    AP_Float _steering_wheelbase;
     bool _data_is_stale = true;
-    float _loiter_exit_angle;
-    LoiterTurnState _loiter_turn_state = LOITER_NONE;
+    //float _loiter_exit_angle;
+
 
     uint8_t divert_allowed;
     uint8_t turn_around_allowed;
-    uint8_t orbit_allowed;
+    //uint8_t orbit_allowed;
 
-    Vector3f loiter_vector;
-    Vector3f auto_turn_vector;
+    //Vector3f loiter_vector;
+    //Vector3f auto_turn_vector;
 
     int8_t _current_nav_type; // 0: Straight, 1: Turn, 2: Orbit (todo: make enum)
 
-    Location loiter_point;
-    Location loiter_point_2;
+    //Location loiter_point;
+    //Location loiter_point_2;
     Location auto_turn_centre;
     Location next_auto_waypoint;
+    Location current_auto_waypoint;
     Location prev_auto_waypoint;
     int8_t auto_turn_clockwise = true;
     float auto_turn_exit_track;
@@ -252,6 +273,11 @@ private:
     AP_Float _loiter_bank_limit;
 
     bool _reverse = false;
+
+    float current_speed;
+    float waypoint_radius;
+    float prev_waypoint_radius;
+    float waypoint_speed;
 
     float get_yaw();
     int32_t get_yaw_sensor() const;

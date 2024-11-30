@@ -14,7 +14,7 @@
  */
 
 #include <AP_AHRS/AP_AHRS.h>
-#include <AP_Math/AP_Math.h>
+#include <AP_Common/AP_Common.h> // Include this header for constrain_float
 #include <AP_HAL/AP_HAL.h>
 #include "AR_WPNav_L1.h"
 #include <GCS_MAVLink/GCS.h>
@@ -92,19 +92,19 @@ const AP_Param::GroupInfo AR_WPNav_L1::var_info[] = {
     // @DisplayName:  Turn frame type. 0 = constant radius in air frame, 1 = constant radius in ground frame
     AP_GROUPINFO("FRAME",13, AR_WPNav_L1, _Turn_Frame_Type, 1),
 
-    AP_GROUPINFO("GTR",14, AR_WPNav_L1, _ground_turn_radius, 200.0),
+    AP_GROUPINFO("GTR",14, AR_WPNav_L1, _ground_turn_radius, 20.0),
 
     AP_GROUPINFO("GTCF",15, AR_WPNav_L1, _ground_turn_correction_factor, 20.0),
 
     AP_GROUPINFO("GTEI",16, AR_WPNav_L1, _ground_turn_early_initiation, 50.0),
 
-    AP_GROUPINFO("L_DIR",17, AR_WPNav_L1, _loiter_side, 1 ),
+    //AP_GROUPINFO("L_DIR",17, AR_WPNav_L1, _loiter_side, 1 ),
 
-    AP_GROUPINFO("L_RAD", 18, AR_WPNav_L1, _loiter_radius, 200.0 ),
+    //AP_GROUPINFO("L_RAD", 18, AR_WPNav_L1, _loiter_radius, 200.0 ),
 
     AP_GROUPINFO("T_ERROR",19, AR_WPNav_L1, _max_auto_point_distance, 1000.0f),
 
-    AP_GROUPINFO("ALT_LOIT",20, AR_WPNav_L1, _use_loiter_vector_alt, 1),
+    //AP_GROUPINFO("ALT_LOIT",20, AR_WPNav_L1, _use_loiter_vector_alt,0 ),
 
     AP_GROUPINFO("E_DECEL",21, AR_WPNav_L1, _emergency_land_deceleration, 3.1f),
 
@@ -112,32 +112,132 @@ const AP_Param::GroupInfo AR_WPNav_L1::var_info[] = {
 
     AP_GROUPINFO("GRE_EX_T", 23, AR_WPNav_L1, _ground_risk_exclusion_timeout, 5.0f),
 
+    AP_GROUPINFO("STR_MAX", 24, AR_WPNav_L1, _steering_angle_max_param, 30.0f),
+
+    AP_GROUPINFO("STR_VEL", 25, AR_WPNav_L1, _steering_angle_velocity_param, 20.0f),
+
+    AP_GROUPINFO("STR_ACCEL", 26, AR_WPNav_L1, _steering_angle_acceleration_param, 50.0f),
+
+    AP_GROUPINFO("STR_WB", 27, AR_WPNav_L1, _steering_wheelbase, 0.4f),
+
+    AP_GROUPINFO("SPD_MAX", 28, AR_WPNav_L1, _speed_max_param, 2.0f),
+
+    AP_GROUPINFO("ACCEL_MAX", 29, AR_WPNav_L1, _accel_max, 1.0f),
+
+    AP_GROUPINFO("DECEL_MAX", 30, AR_WPNav_L1, _decel_max, 1.0f),
+
+    AP_GROUPINFO("TURN_G",31, AR_WPNav_L1, _turn_lateral_G , 0.1f),
+
     AP_GROUPEND
 };
 
+
+void AR_WPNav_L1::init(float speed_max)
+{
+    //initilaize locations to zero
+    auto_turn_centre.zero();
+    next_auto_waypoint.zero();
+    prev_auto_waypoint.zero();
+    _base_speed_max = _speed_max_param;
+    current_speed = 0;
+
+
+}
 
 
 // update navigation
 void AR_WPNav_L1::update(float dt)
 {
   
+        // exit immediately if no current location, origin or destination
+    Location current_loc;
+    float speed;
+    if (!hal.util->get_soft_armed() || !_orig_and_dest_valid || !AP::ahrs().get_location(current_loc) || !_atc.get_forward_speed(speed)) {
+        _desired_speed_limited = _atc.get_desired_speed_accel_limited(0.0f, dt);
+        _desired_lat_accel = 0.0f;
+        _desired_turn_rate_rads = 0.0f;
+        _cross_track_error = 0;
+        return;
+    }
 
-    // call parent update
-    AR_WPNav::update(dt);
+    _last_update_ms = AP_HAL::millis();
+
+    update_waypoint( prev_auto_waypoint,current_auto_waypoint);
+
+    Vector2f turnDistance = turn_distance_ground_frame(prev_auto_waypoint,current_loc, current_auto_waypoint,next_auto_waypoint, 5.0f);
+
+    float distance_to_waypoint = current_loc.get_distance_NE(current_auto_waypoint).length() ;
+    float turn_distance = turnDistance.length();
+
+    //float target_speed = current_speed;
+
+    float distance_to_turn = distance_to_waypoint - turn_distance;
+
+    if (distance_to_turn <0){
+        _reached_destination = true;
+
+    }
+    else{
+        _reached_destination = false;
+    }
+
+
+    float steering_angle_max = DEG_TO_RAD*_steering_angle_max_param;
+    float steering_angle_max_rate = DEG_TO_RAD*_steering_angle_velocity_param;
+    float steering_angle_max_accel = DEG_TO_RAD*_steering_angle_acceleration_param;
+
+    float steering_angle = nav_steering_angle(_ahrs.groundspeed_vector().length(), _steering_wheelbase, steering_angle_max, steering_angle_max_rate, steering_angle_max_accel, _ground_turn_radius);
+
+    float turn_radius = _steering_wheelbase/tanf(steering_angle);
+
+    // calculate the desired turn rate from velocity and turn radius
+    float desired_turn_rate = _ahrs.groundspeed_vector().length()/turn_radius;
+
+
+
+    // handle change in max speed
+    _base_speed_max = _speed_max_param;
+    //update_speed_demand(dt);
+
+    //update_speed_max();
+
+
+    _cross_track_error = calc_crosstrack_error(current_loc);
+
+    // update position controller
+    _pos_control.set_reversed(_reversed);
+    _pos_control.overRideTurnRate(desired_turn_rate);
+    _pos_control.overRideSpeed(_base_speed_max);
+    _pos_control.update(dt);
+
+
+    _desired_speed_limited = _pos_control.get_desired_speed();
+    _desired_turn_rate_rads = desired_turn_rate;
+    _desired_lat_accel = _pos_control.get_desired_lat_accel();
+
 }
 
 
+void AR_WPNav_L1::update_speed_demand(float dt)
+{
+    float desired_speed = _base_speed_max;
+    float speed = _ahrs.groundspeed_vector().length();
+    float speed_error = desired_speed - speed;
+    float speed_change_max = _atc.get_accel_max() * dt;
+    float speed_change = constrain_float(speed_error, -speed_change_max, speed_change_max);
+    _base_speed_max = speed + speed_change;
+}   
 
-/*
-  Wrap AHRS yaw if in reverse - radians
- */
+
+
+
 
 void AR_WPNav_L1::reset(){
     _initial_turn_complete = true;
     auto_turn_centre.zero();
-    _loiter_turn_state = LOITER_NONE;
-    auto_turn_vector = Vector3f(0,0,1.0f);
-    loiter_vector = Vector3f(0,0,1.0f);
+    //_loiter_turn_state = LOITER_NONE;
+    //auto_turn_vector = Vector3f(0,0,1.0f);
+    //loiter_vector = Vector3f(0,0,1.0f);
 }
 
 float AR_WPNav_L1::get_yaw()
@@ -153,24 +253,24 @@ void AR_WPNav_L1::start_new_turn(void)
 {
 
     // If this was entered by a WP update and we are not currently completing a loiter
-    if(_loiter_turn_state == LOITER_NONE){
+    //if(_loiter_turn_state == LOITER_NONE){
         // if in normal navigation and are still in a turn, cancel the turn
-        if (!_initial_turn_complete ) {
-            gcs().send_text(MAV_SEVERITY_INFO, "Didnt make the turn - cancelled");
-            _initial_turn_complete = true;
-            auto_turn_centre.zero();
-        } else {
-            //start a new turn if we were on track
-            _initial_turn_complete = false;
-        }
-    }
-    // If this was entered by resuming AUTO from a turnaround, ensure that any previous turn state is cleared
-    else if (_loiter_turn_state == LOITER_TURNAROUND_1 || _loiter_turn_state == LOITER_TURNAROUND_2){
+    if (!_initial_turn_complete ) {
+        gcs().send_text(MAV_SEVERITY_INFO, "Didnt make the turn - cancelled");
         _initial_turn_complete = true;
+        auto_turn_centre.zero();
+    } else {
+        //start a new turn if we were on track
+        _initial_turn_complete = false;
     }
+    //}
+    // If this was entered by resuming AUTO from a turnaround, ensure that any previous turn state is cleared
+    //else if (_loiter_turn_state == LOITER_TURNAROUND_1 || _loiter_turn_state == LOITER_TURNAROUND_2){
+    //    _initial_turn_complete = true;
+    //}
 
 }
-
+/*
 void AR_WPNav_L1::setup_loiter_to_track(void){
     if (_loiter_turn_state == LOITER_NONE) {
         _loiter_turn_state = LOITER_ORBIT;
@@ -183,7 +283,9 @@ void AR_WPNav_L1::setup_loiter_to_track(void){
         ground_risk_exclusion_event_trigger();
     }
 }
+*/
 
+/*
 void AR_WPNav_L1::setup_loiter_to_new_track(Vector2f newTrack, Location LoiterPoint2) {
     orbit_allowed = 0;
     _loiter_turn_state = LOITER_TURNAROUND_1;
@@ -195,6 +297,7 @@ void AR_WPNav_L1::setup_loiter_to_new_track(Vector2f newTrack, Location LoiterPo
     auto_turn_centre.zero();
     loiter_point_2.clone(LoiterPoint2);
 }
+*/
 
 bool AR_WPNav_L1::initial_turn_complete(void){
     return _initial_turn_complete;
@@ -215,6 +318,7 @@ int32_t AR_WPNav_L1::get_yaw_sensor() const
   return the bank angle needed to achieve tracking from the last
   update_*() operation
  */
+/*
 int32_t AR_WPNav_L1::nav_roll_cd() const
 {
     float ret;
@@ -222,78 +326,52 @@ int32_t AR_WPNav_L1::nav_roll_cd() const
     ret = constrain_float(ret, -9000, 9000);
     return ret;
 }
+*/
 
-/*
-    return the bank angle needed to achieve tracking from the last update_*() operation
-    Considers
-        - bank limit
-        - roll rate limit
-        - roll accel limit
-
-    A turn is divided into three components:
-        - Transition from 0 roll angle to commanded turn roll angle
-        - Hold commanded turn roll angle
-        - Transition from commanded turn roll angle back to 0 roll angle
-
-    The first and last stages are symmetrical and therefore cover the same amount of distance in the air frame
- */
-int32_t AR_WPNav_L1::nav_roll_cd_special(float _amax, float _rmax, float _trimspeed, float _minspeed, Location current_location)
+float AR_WPNav_L1::nav_steering_angle(float groundspeed, float wheelbase, float _steering_angle_max, float _steering_angle_max_rate, float _steering_angle_max_accel, float turn_radius) 
 {
+    /// all angles in radians
+    //float min_radius = MAX((groundspeed*groundspeed)/(max_g*GRAVITY_MSS);
 
-    float bank_limit = DEG_TO_RAD*_auto_bank_limit;
-    float roll_rate = DEG_TO_RAD*_rmax;
-    float roll_accel = DEG_TO_RAD*_amax;
-    float airspeed = 0;
-    const bool gotAirspeed = _ahrs.airspeed_estimate_true(&airspeed);
+    //float demand_radius = (groundspeed* groundspeed)/(_latAccDem);
+    //return MAX(min_radius,demand_radius);
 
-    if(!gotAirspeed || airspeed <  _minspeed){
-        airspeed = _trimspeed; //need to make it a reference to trim speed
-        if (airspeed<1.0f){
-            airspeed =1;
-        }
+    ///////////////////////
+    //float bank_limit = DEG_TO_RAD*_auto_bank_limit;
+
+    Location current_location;
+
+    if(!_ahrs.get_location(current_location)){
+        return 0;
+    }
+    
+    if(_steering_angle_max< 0.5){
+        _steering_angle_max = 0.5;
     }
 
-    if(bank_limit< 0.5){
-        bank_limit = 0.5;
+    if(_steering_angle_max_rate<0.1){
+        _steering_angle_max_rate =0.1;
     }
 
-    if(roll_rate<0.1){
-        roll_rate =0.1;
+    if(_steering_angle_max_accel< (_steering_angle_max_rate*_steering_angle_max_rate/(2.0f*_steering_angle_max))){
+        _steering_angle_max_accel = (_steering_angle_max_rate*_steering_angle_max_rate/(2.0f*_steering_angle_max)) + 0.1;
     }
 
+    // calc steering angle for a given turn radius
 
-    if(roll_accel< (roll_rate*roll_rate/(2.0f*bank_limit))){
-        roll_accel = (roll_rate*roll_rate/(2.0f*bank_limit)) + 0.1;
-    }
+    float turn_steering_angle = atanf(wheelbase/turn_radius);
+
+    // turn radius resulting from half the steering angle required for the planned turn rate
+    float thetaTR = wheelbase/tanf(turn_steering_angle*0.5f);
 
     // theta is the heading change between straight flight and full commanded bank angle
-    float theta = (bank_limit*0.5f)*((bank_limit/roll_rate)+(roll_rate/roll_accel))*((6*GRAVITY_MSS)/(5*airspeed));
-    Vector2f target_ground_velocity =  Vector2f(cosf(_nav_bearing),sinf(_nav_bearing));
-    Vector2f _windspeed_vector = Vector2f(_ahrs.wind_estimate().x, _ahrs.wind_estimate().y);
-    Vector2f _check_windspeed =  _ahrs.groundspeed_vector() - (Vector2f(cosf( _ahrs.get_yaw()),sinf(_ahrs.get_yaw()))*airspeed);
-
-     //check if the wind estimate makes any sense
-    if (_windspeed_vector.angle(_check_windspeed) > M_PI_4 || _windspeed_vector.length() <_check_windspeed.length() *0.5 ||_windspeed_vector.length()>_check_windspeed.length()*2.0){
-        _windspeed_vector =  _check_windspeed; //this is more robust, but less accurate
-    }
-
-    Vector2f target_air_velocity = get_airspeed_from_wind_ground(_windspeed_vector,target_ground_velocity,airspeed);
-
-
+    float thetaTime = (_steering_angle_max/_steering_angle_max_rate) + (_steering_angle_max_rate/_steering_angle_max_accel);    
+    float theta = thetaTime*groundspeed/thetaTR;
     float _curr_groundspeed_heading = atan2f(_ahrs.groundspeed_vector().y,_ahrs.groundspeed_vector().x);    // current ground speed heading of the aircraft
-    float _ground_turn_angle = wrap_2PI(_nav_bearing-_curr_groundspeed_heading+ M_PI)- M_PI;
-    float _airspeed_heading_2 = atan2f(target_air_velocity.y,target_air_velocity.x);
-    float _air_turn_angle = wrap_2PI(_airspeed_heading_2-_ahrs.get_yaw()+ M_PI)- M_PI;
 
-    // if the best angle to turn in the air frame is different to the ground frame,
-    // force the air turn to be in the same direction as the ground turn
-
-    if (_air_turn_angle * _ground_turn_angle < 0 && abs(_ground_turn_angle) > M_PI_2 && abs(_air_turn_angle) > 0.001) {
-        _air_turn_angle += -(abs(_air_turn_angle) / _air_turn_angle) * (M_PI*2);
-    }
 
     float ground_turn_angle_remaining = wrap_2PI(auto_turn_exit_track-_curr_groundspeed_heading+ M_PI)- M_PI; // angle between current ground speed heading of aircraft and exit track direction
-    float loiter_turn_remaining = wrap_2PI(_loiter_exit_angle-_curr_groundspeed_heading+ M_PI)- M_PI;
+    //float loiter_turn_remaining = wrap_2PI(_loiter_exit_angle-_curr_groundspeed_heading+ M_PI)- M_PI;
 
     if (auto_turn_centre.lat == 0 && auto_turn_centre.lng == 0) {
         if (!_initial_turn_complete) {
@@ -303,86 +381,22 @@ int32_t AR_WPNav_L1::nav_roll_cd_special(float _amax, float _rmax, float _trimsp
         auto_turn_centre.zero();
     }
 
-    // If initial acceleration portion of the turn is complete
-    if (_Turn_Frame_Type == 1 && _loiter_turn_state != LOITER_NONE) {
-        // if within our allowable window to exit the turn or,
-        // if we are too far away from the turn centre point to continue the turn - this must be an error
-        if (abs(loiter_turn_remaining) / theta < _L1_Turn_Exit_Fraction || current_location.get_distance(loiter_point) > in_turn_error_scalar*_ground_turn_radius) {
-            // if we have overshot our exit window
-            if(_loiter_side*loiter_turn_remaining <0 || (AP_HAL::millis() - ground_risk_exclusion_event_time < _ground_risk_exclusion_timeout *1000)){
-
-                //gcs().send_text(MAV_SEVERITY_INFO, "Orbit end blocked");
-            }else{
-                // if we are exiting the turn, proceed to the next state in the machine
-                switch (_loiter_turn_state) {
-                case LOITER_TURNAROUND_1:
-                    gcs().send_text(MAV_SEVERITY_INFO, "Turn around 1 complete");
-                    // ignore GRE as crosstrack error will be high when we switch orbit directions
-                    ground_risk_exclusion_event_trigger();
-                    // set up new loiter point for the centre of LOITER_TURNAROUND_2 turn
-                    _loiter_exit_angle = wrap_2PI(_loiter_exit_angle-M_PI_2*_loiter_side);
-                    if (_loiter_exit_angle < -M_PI) {
-                        _loiter_exit_angle += M_2PI;
-                    }
-                    loiter_point.clone(loiter_point_2);
-                    _loiter_turn_state = LOITER_TURNAROUND_2;
-                    break;
-                case LOITER_TURNAROUND_2:
-                    gcs().send_text(MAV_SEVERITY_INFO, "Turn around 2 complete");
-                    // reset cross track integral error
-                    _L1_xtrack_i = 0.0f;
-                    // continue on straight path as defined by route
-                    _loiter_turn_state = LOITER_NONE;
-                    break;
-                case LOITER_ORBIT:
-                    gcs().send_text(MAV_SEVERITY_INFO, "Orbit Complete");
-                    // if completed orbit however we have not completed our original nav turn and
-                    // the nav turn is in a different direction to the orbit direction
-                    if(!_initial_turn_complete && auto_turn_clockwise*_loiter_side<0){
-                        // ignore GRE as crosstrack error will be high when we switch turn directions
-                        ground_risk_exclusion_event_trigger();
-                    }
-                    // reset cross track integral error
-                    _L1_xtrack_i = 0.0f;
-                    // continue on straight path as defined by route
-                    _loiter_turn_state = LOITER_NONE;
-                    break;
-                default:
-                    gcs().send_text(MAV_SEVERITY_INFO, "Loiter Navigation Complete");
-                    _L1_xtrack_i = 0.0f;
-                    _loiter_turn_state = LOITER_NONE;
-                    break;
-                }
-            }
-        }
-    }
-    else if(_Turn_Frame_Type == 0 || current_location.get_distance(auto_turn_centre) > in_turn_error_scalar*_ground_turn_radius) {
-        if( abs(_air_turn_angle/theta)<_L1_Turn_Exit_Fraction  && !_initial_turn_complete ){
-            _initial_turn_complete = true;
-            auto_turn_centre.zero();
-            gcs().send_text(MAV_SEVERITY_INFO, "Initial turn complete ");
-        }
-    }
-    else if( (ground_turn_angle_remaining*auto_turn_clockwise) / theta < _L1_Turn_Exit_Fraction && !_initial_turn_complete ) {
+    
+    if( (ground_turn_angle_remaining*auto_turn_clockwise) / theta < _L1_Turn_Exit_Fraction && !_initial_turn_complete ) {
         _initial_turn_complete = true;
         auto_turn_centre.zero();
         _L1_xtrack_i = 0.0f;
         gcs().send_text(MAV_SEVERITY_INFO, "Ground frame turn complete ");
     }
 
-    float bank_angle;
+    float ideal_turn_radius = groundspeed*groundspeed/_latAccDem;
 
-    if (_initial_turn_complete || _Turn_Frame_Type == 1) {
-        bank_angle = cosf(_ahrs.get_pitch())*degrees(atanf(_latAccDem * 0.101972f)); // 0.101972 = 1/9.81
-        bank_angle = constrain_float(bank_angle, -_auto_bank_limit, _auto_bank_limit)* 100.0f;
+    float ideal_steering_angle = atanf(wheelbase/ideal_turn_radius);
 
-    } else {
-        bank_angle = (constrain_float(_air_turn_angle*_L1_Mid_Turn_Gain/theta,-1.0f,1.0f)* _auto_bank_limit)*100.0f;
-    }
+    //limit the steering angle to between the max and min steering angle
+    return constrain_float(ideal_steering_angle, -_steering_angle_max, _steering_angle_max);
 
-    return (int32_t)bank_angle;
 }
-
 
 /*
   return the lateral acceleration needed to achieve tracking from the last
@@ -419,14 +433,18 @@ void AR_WPNav_L1::ground_risk_exclusion_event_trigger(void)
     ground_risk_exclusion_event_time = AP_HAL::millis();
     return;
 }
+
+
 /*
   this is the turn distance assuming a 90 degree turn
  */
+/*
 float AR_WPNav_L1::turn_distance(float wp_radius) const
 {
-    wp_radius *= sq(_ahrs.get_EAS2TAS());
+    //wp_radius *= sq(_ahrs.get_EAS2TAS());
     return MIN(wp_radius, _L1_dist);
 }
+*/
 
 /*
   this approximates the turn distance for a given turn angle. If the
@@ -436,6 +454,7 @@ float AR_WPNav_L1::turn_distance(float wp_radius) const
   they have reached the waypoint early, which makes things like camera
   trigger and ball drop at exact positions under mission control much easier
  */
+/*
 float AR_WPNav_L1::turn_distance(float groundspeed, float turn_angle) const
 {
     if (turn_angle < 0.1){
@@ -445,130 +464,8 @@ float AR_WPNav_L1::turn_distance(float groundspeed, float turn_angle) const
     float turn_distance = turn_radius/tanf(radians((180.0f-abs(turn_angle))*0.5f));
     return turn_distance;
 }
-
-/*
-  return the turn distance for a given turn angle
-    Considers
-        - bank limit
-        - roll rate limit
-        - roll accel limit
-        - ground velocity frame
-        - air velocity frame
 */
-Vector2f AR_WPNav_L1::turn_distance_air_frame( const struct Location &current_loc, const struct Location &turn_WP, const struct Location &next_WP, const float roll_rate_deg, const float roll_accel_deg, float _trimspeed, float _minspeed, float _current_roll) //const
-{
 
-
-    float bank_limit = DEG_TO_RAD*_auto_bank_limit;
-    float roll_rate = DEG_TO_RAD*roll_rate_deg;
-    float roll_accel = DEG_TO_RAD*roll_accel_deg;
-
-    float airspeed = 1.0f; // should set to trim airspeed
-    const bool gotAirspeed = _ahrs.airspeed_estimate_true(&airspeed);
-
-    if(_ahrs.groundspeed_vector().length() < 0.5f){
-        return Vector2f(0.1f,0.1f);
-    }
-
-    if(!gotAirspeed || airspeed <  _minspeed){
-       return _ahrs.groundspeed_vector().normalized()*10.0f;
-    }
-
-    if(_ahrs.groundspeed() <2.0f|| turn_WP.get_distance_NE(next_WP).length()<10.0f ){
-        return _ahrs.groundspeed_vector().normalized()* airspeed *2.0f ;
-    }
-
-    // Remove any change of divide by zero
-    bank_limit = MAX(bank_limit, 0.5f);
-    roll_rate = MAX(roll_rate, 0.1);
-
-    if(roll_accel< (roll_rate*roll_rate/(2.0f*bank_limit))){
-        roll_accel = (roll_rate*roll_rate/(2.0f*bank_limit)) + 0.1;
-    }
-
-
-    float theta = _turn_rate_correction_factor*(bank_limit*0.5f)*((bank_limit/roll_rate)+(roll_rate/roll_accel))*((6*GRAVITY_MSS)/(5*airspeed));
-    Vector2f _groundspeed_vector_1 = _ahrs.groundspeed_vector();
-    Vector2f _windspeed_vector = Vector2f(_ahrs.wind_estimate().x, _ahrs.wind_estimate().y);
-    Vector2f _check_windspeed =  _ahrs.groundspeed_vector() - (Vector2f(cosf( _ahrs.get_yaw()),sinf(_ahrs.get_yaw()))*airspeed);
-
-    //check if the wind estimate makes any sense
-    if (_windspeed_vector.angle(_check_windspeed) > M_PI_4 || _windspeed_vector.length() <_check_windspeed.length() *0.5 ||_windspeed_vector.length()>_check_windspeed.length()*2.0){
-        _windspeed_vector =  _check_windspeed; //this is more robust, but less accurate
-    }
-
-    Vector2f _airspeed_vector_1 = _groundspeed_vector_1 - _windspeed_vector;
-    Vector2f _groundspeed_vector_2 = turn_WP.get_distance_NE(next_WP);
-    Vector2f _airspeed_vector_2 = get_airspeed_from_wind_ground(_windspeed_vector, _groundspeed_vector_2, airspeed);
-
-
-    //catches case where we have to turn more than 180 degrees in air frame
-    float _groundspeed_heading_1 = atan2f(_groundspeed_vector_1.y,_groundspeed_vector_1.x);
-    float _groundspeed_heading_2 = atan2f(_groundspeed_vector_2.y,_groundspeed_vector_2.x);
-    float _ground_turn_angle = wrap_2PI(_groundspeed_heading_2-_groundspeed_heading_1+ M_PI)- M_PI;
-    float _airspeed_heading_1 = atan2f(_airspeed_vector_1.y,_airspeed_vector_1.x);
-    float _airspeed_heading_2 = atan2f(_airspeed_vector_2.y,_airspeed_vector_2.x);
-    float _air_turn_angle = wrap_2PI(_airspeed_heading_2-_airspeed_heading_1+ M_PI)- M_PI;
-
-    //fix the divide by zero nonesense (your turn is near straight anyway)
-    if(abs(_air_turn_angle)<0.02 || abs(_ground_turn_angle)<0.02){
-       return _ahrs.groundspeed_vector() *2.0f;
-    }
-
-    //reduce the distance if you are already rolled the correct direction
-    Vector2f turn_distance_extra = Vector2f(0.0f,0.0f);
-    if(abs(_current_roll)>0.01){
-        if (_current_roll *_air_turn_angle<0.0f){
-            float turn_rate = 0.5*_turn_rate_correction_factor*bank_limit*((6*GRAVITY_MSS)/(5*airspeed));
-            turn_distance_extra =_ahrs.groundspeed_vector().normalized()*(abs(_current_roll)/bank_limit)*(theta/turn_rate) *_ahrs.groundspeed();
-        }
-        else{
-            theta = (1 - (0.5*abs(_current_roll)/bank_limit))*theta;
-        }
-    }
-
-    // If there is no constant roll portion of the turn
-    if(abs(_air_turn_angle) <  2*theta ){
-
-        float turnRadius= sq(_ahrs.groundspeed_vector().length())/(GRAVITY_MSS*tanf(bank_limit*0.5f));
-        float turnDistanceScalar = 2*turnRadius/tanf((M_PI-abs(_air_turn_angle))*0.5f);
-        if(turnDistanceScalar < _ahrs.groundspeed()*2.0){
-            turnDistanceScalar = _ahrs.groundspeed()*2.0f;
-        }
-        if(current_loc.get_distance_NE(turn_WP).length()<1.0f){
-            return _groundspeed_vector_1;
-        }
-        Vector2f turnDistanceReturn  = current_loc.get_distance_NE(turn_WP).normalized()*(turnDistanceScalar +turn_distance_extra.length() + (_ahrs.groundspeed()*_L1_Turn_Delay)  );
-
-        return turnDistanceReturn;
-    }
-
-    // if the best angle to turn in the air frame is different to the ground frame,
-    // force the air turn to be in the same direction as the ground turn
-    if(_air_turn_angle*_ground_turn_angle<0 ){
-        _air_turn_angle += -(abs(_air_turn_angle)/_air_turn_angle)*(M_PI*2);
-    }
-
-    Vector2f _airspeed_vector_1_normalized = _airspeed_vector_1.normalized();
-    Vector2f perp_airspeed_vector_1 = Vector2f(-_airspeed_vector_1_normalized.y, _airspeed_vector_1_normalized.x); // perpendicular airspeed vector
-    // set direction of perpendicular airspeed vector based on turn direction
-    if(_air_turn_angle<0.0f){
-        perp_airspeed_vector_1 = -perp_airspeed_vector_1;
-    }
-
-    float beta = abs(_air_turn_angle);
-    Vector2f turnDistanceXY = ( (perp_airspeed_vector_1* (2-cosf(theta) + cosf(beta-theta) -(2*cosf(beta)))) + (_airspeed_vector_1_normalized*(sinf(theta)-sinf(beta-theta)+(2*sinf(beta)))));
-    turnDistanceXY = turnDistanceXY*((5*sq(airspeed))/(6*GRAVITY_MSS*bank_limit*_turn_rate_correction_factor));
-
-    float turnTimealphaPortion = ((5*airspeed)/(6*GRAVITY_MSS*bank_limit*_turn_rate_correction_factor))*(abs(_air_turn_angle)-(2*theta));
-    float turnTimeThetaPortion = (2*((bank_limit/roll_rate)+(roll_rate/roll_accel)));
-    float turnTime = turnTimealphaPortion + turnTimeThetaPortion;
-
-    turnDistanceXY = turnDistanceXY + (_windspeed_vector*turnTime)+turn_distance_extra + (_ahrs.groundspeed_vector()*_L1_Turn_Delay) ;
-
-    return turnDistanceXY;
-
-}
 
 // Return the distance away from the next waypoint where we should tick off that waypoint and commence the turn onto the new track.
 Vector2f AR_WPNav_L1::turn_distance_ground_frame(const struct Location &previous_wp, const struct Location &current_loc, const struct Location &turn_WP, const struct Location &next_WP, float _trimspeed) //const
@@ -589,12 +486,12 @@ Vector2f AR_WPNav_L1::turn_distance_ground_frame(const struct Location &previous
         auto_turn_clockwise = potential_turn_direction; // direciton of auto_turn. Positive is clockwise
         auto_turn_centre.clone(potential_turn_centre);  // set auto_turn_centre location to the calculated potiential_turn_centre above
         auto_turn_exit_track = _groundspeed_heading_2;  // set auto_turn_exit_track to be the linear track between the WP to be completed and the WP following
-        if(_use_loiter_vector_alt>0){
-            auto_turn_vector = potential_turn_vector;   // if we have enabled height varying loiters, assign the normal unit vector component to describe what the alt profile should be
-        }
-        else{
-            auto_turn_vector = Vector3f(0,0,1.0f);      // otherwise, set the loiter to be non-varying altitude
-        }
+        //if(_use_loiter_vector_alt>0){
+        //    auto_turn_vector = potential_turn_vector;   // if we have enabled height varying loiters, assign the normal unit vector component to describe what the alt profile should be
+        //}
+        //else{
+        //auto_turn_vector = Vector3f(0,0,1.0f);      // otherwise, set the loiter to be non-varying altitude
+        //}
     }
     // If you are in a turn. The exit track is the angle of the "Current Track" that you are aiming to turn onto.
     else{
@@ -607,41 +504,7 @@ Vector2f AR_WPNav_L1::turn_distance_ground_frame(const struct Location &previous
 
 }
 
-Vector2f AR_WPNav_L1::turn_distance_special(const struct Location &previous_wp, const struct Location &current_loc, const struct Location &turn_WP, const struct Location &next_WP, const float roll_rate_deg, const float roll_accel_deg, float _trimspeed, float _minspeed, float _current_roll) //const
-{
-    //Constant radius turn in air frame
-    if(_Turn_Frame_Type == 0){
-        return turn_distance_air_frame(current_loc,turn_WP,next_WP,roll_accel_deg,roll_accel_deg,_trimspeed,_minspeed,_current_roll);
-    }
-
-    return turn_distance_ground_frame(previous_wp,current_loc,turn_WP,next_WP,_trimspeed);
-
-}
-
 /*
-    return velocity vector in air frame
- */
-Vector2f AR_WPNav_L1::get_airspeed_from_wind_ground(const Vector2f wind, const Vector2f ground, const float airspeed) const
-{
-    if (ground.length()<0.1f || airspeed<2.0f){
-        return ground;
-    }
-    Vector2f G = ground.normalized();
-    Vector2f WindInTrack = wind;
-    WindInTrack = ground * (WindInTrack * ground)/(ground*ground);
-    Vector2f C = WindInTrack - wind;
-    float magC = C.length();
-    Vector2f A = Vector2f();
-
-    if(airspeed>magC){
-        A = G*sqrtf(sq(airspeed)- sq(magC)) +C;
-    }
-    else{
-        A = -wind.normalized()*airspeed;
-    }
-    return A;
-}
-
 float AR_WPNav_L1::loiter_radius(const float radius) const
 {
     // prevent an insane loiter bank limit
@@ -673,11 +536,15 @@ float AR_WPNav_L1::loiter_radius(const float radius) const
         }
     }
 }
+*/
+
+/*
 
 bool AR_WPNav_L1::reached_loiter_target(void)
 {
     return _WPcircle;
 }
+*/
 
 /**
    prevent indecision in our turning by using our previous turn
@@ -706,24 +573,24 @@ void AR_WPNav_L1::update_waypoint(const struct Location &prev_WP, const struct L
      // Get current position and velocity
     bool canLoiterTurn = false;
     bool inTurnRadius = false;
-    bool inLoiterRadius = false;
-    bool canFinishLoiter = false;
+    //bool inLoiterRadius = false;
+    //bool canFinishLoiter = false;
 
     // variables for logging
-    uint8_t nav_method = 0;
-    float loiter_centre_dist = 0;
+    //uint8_t nav_method = 0;
+    //float loiter_centre_dist = 0;
     float anglePositive = 0;
-    float loiterAnglePositive = 0;
+    //float loiterAnglePositive = 0;
 
-    next_auto_waypoint.clone(next_WP);
+    current_auto_waypoint.clone(next_WP);
     prev_auto_waypoint.clone(prev_WP);
 
     divert_allowed = 0;
     turn_around_allowed = 0;
 
     Vector2f centre_from_current = Vector2f(0,0);
-    Vector2f loiter_from_current = Vector2f(0,0);
-    if(_ahrs.get_position(_current_loc) && _ahrs.get_velocity_NED(velocity)){
+    //Vector2f loiter_from_current = Vector2f(0,0);
+    if(_ahrs.get_location(_current_loc) && _ahrs.get_velocity_NED(velocity)){
 
         // do the "Is it sensible to loiter around the turn point" checks
         if (auto_turn_centre.lat == 0 && auto_turn_centre.lng == 0) {
@@ -755,6 +622,7 @@ void AR_WPNav_L1::update_waypoint(const struct Location &prev_WP, const struct L
         if(anglePositive * auto_turn_clockwise >0 && inTurnRadius){
             canLoiterTurn = true;
         }
+        /*
         else{
             if(!_initial_turn_complete && _loiter_turn_state == LOITER_NONE){
                 _initial_turn_complete = true;
@@ -762,29 +630,33 @@ void AR_WPNav_L1::update_waypoint(const struct Location &prev_WP, const struct L
                 gcs().send_text(MAV_SEVERITY_INFO, "Turn Point Out of Range");
             }
         }
+        */
 
 
         // do the "Is it sensible to loiter around the loiter point" checks
-        loiter_centre_dist = _current_loc.get_distance(loiter_point);
-        inLoiterRadius = _current_loc.get_distance(loiter_point)< 2.5*_ground_turn_radius;
-        loiter_from_current = _current_loc.get_distance_NE(loiter_point);
-        loiterAnglePositive = (-loiter_from_current.x*velocity.y) + (loiter_from_current.y*velocity.x);
-        int8_t side = _loiter_side;
+        //loiter_centre_dist = _current_loc.get_distance(loiter_point);
+        //inLoiterRadius = _current_loc.get_distance(loiter_point)< 2.5*_ground_turn_radius;
+        //loiter_from_current = _current_loc.get_distance_NE(loiter_point);
+        //loiterAnglePositive = (-loiter_from_current.x*velocity.y) + (loiter_from_current.y*velocity.x);
+        //int8_t side = _loiter_side;
+        /*
         if (_loiter_turn_state == LOITER_TURNAROUND_2) {
             side *= -1;
         }
+        
 
         if (loiterAnglePositive * side > 0 && inLoiterRadius) {
             canFinishLoiter = true;
-        } else if(_loiter_turn_state != LOITER_NONE) {
+        } 
+        else if(_loiter_turn_state != LOITER_NONE) {
             _loiter_turn_state = LOITER_NONE;
             gcs().send_text(MAV_SEVERITY_INFO, "Loiter Centre Calculation Error");
         }
-
+        */
     }
 
-    if (_loiter_turn_state != LOITER_NONE && _Turn_Frame_Type==1 && canFinishLoiter) {
-        nav_method = 1;
+    /*if (_loiter_turn_state != LOITER_NONE && _Turn_Frame_Type==1 && canFinishLoiter) {
+        //nav_method = 1;
         int8_t side = _loiter_side;
         if (_loiter_turn_state == LOITER_TURNAROUND_2) {
             side *= -1;
@@ -792,45 +664,53 @@ void AR_WPNav_L1::update_waypoint(const struct Location &prev_WP, const struct L
         update_loiter(loiter_point, _loiter_radius - _ground_turn_correction_factor, side);
         _current_nav_type = 2;
 
-    }else if (!initial_turn_complete() && _Turn_Frame_Type==1  && canLoiterTurn){
+    }else 
+    */
+    if (!initial_turn_complete() && _Turn_Frame_Type==1  && canLoiterTurn){
 
-        nav_method = 2;
+        //nav_method = 2;
+
         //check that the new loiter point is "forward" of the old one, so the point cant be walked back by being cantankerous with loiter initiation timing
-        Location potential_loiter_point;
-        potential_loiter_point.clone(auto_turn_centre);
-        Vector2f offset = -centre_from_current.normalized() * (_ground_turn_radius - (_loiter_radius * _loiter_side * auto_turn_clockwise));
-        potential_loiter_point.offset(offset.x,offset.y);
+        //Location potential_loiter_point;
+        //potential_loiter_point.clone(auto_turn_centre);
+        //Vector2f offset = -centre_from_current.normalized() * (_ground_turn_radius - (_loiter_radius * _loiter_side * auto_turn_clockwise));
+        //potential_loiter_point.offset(offset.x,offset.y);
         // if the new loiter point is not behind your current ground heading, allow it
         // if the loiter_point is uninitialized, clone anyway to initialise it
-        if(_ahrs.groundspeed_vector()*loiter_point.get_distance_NE(potential_loiter_point)>0 || (loiter_point.lat == 0 && loiter_point.lng == 0)){
-            loiter_point.clone(potential_loiter_point);
-        }
+        //if(_ahrs.groundspeed_vector()*loiter_point.get_distance_NE(potential_loiter_point)>0 || (loiter_point.lat == 0 && loiter_point.lng == 0)){
+        //    loiter_point.clone(potential_loiter_point);
+        //}
         // allow an orbit, however this will still use the existing loiter point, rejecting the newer point that is behind it
-        orbit_allowed = 1;
+        //orbit_allowed = 1;
 
-        if (_use_loiter_vector_alt > 0 && _loiter_side * auto_turn_clockwise > 0) {
-            loiter_vector = auto_turn_vector;
-        } else {
-            loiter_vector = Vector3f(0,0,1.0f);
-            if ( loiter_point.alt < prev_WP.alt) {
-                loiter_point.alt = prev_WP.alt;
-            }
-        }
+        //if (_use_loiter_vector_alt > 0 && _loiter_side * auto_turn_clockwise > 0) {
+        //    loiter_vector = auto_turn_vector;
+        //} else {
+        //loiter_vector = Vector3f(0,0,1.0f);
+        //if ( loiter_point.alt < prev_WP.alt) {
+        //    loiter_point.alt = prev_WP.alt;
+        //}
+        //}
 
-        _loiter_exit_angle = atan2f(-centre_from_current.x*auto_turn_clockwise, centre_from_current.y*auto_turn_clockwise);
+        //loiter_exit_angle = atan2f(-centre_from_current.x*auto_turn_clockwise, centre_from_current.y*auto_turn_clockwise);
         update_loiter(auto_turn_centre,_ground_turn_radius-_ground_turn_correction_factor,auto_turn_clockwise);
         _current_nav_type = 1;
     }
     else{
-        nav_method = 3;
+        //nav_method = 3;
         update_waypoint_straight(prev_WP,next_WP,dist_min);
 
-        Vector2f target_track = prev_WP.get_distance_NE(next_WP);
+        //Vector2f target_track = prev_WP.get_distance_NE(next_WP);
 
-         _loiter_exit_angle = atan2f(target_track.y,target_track.x);
+         //_loiter_exit_angle = atan2f(target_track.y,target_track.x);
         _current_nav_type = 0;
     }
 
+    // log the orbit information
+
+
+
+    /*
     struct log_Orbit pkt = {
         LOG_PACKET_HEADER_INIT(LOG_ORBIT_MSG),
         time_us : AP_HAL::micros64(),
@@ -846,6 +726,59 @@ void AR_WPNav_L1::update_waypoint(const struct Location &prev_WP, const struct L
         loiter_point_lng : loiter_point.lng
     };
     AP::logger().WriteBlock(&pkt, sizeof(pkt));
+    */
+}
+
+bool AR_WPNav_L1::set_waypoint_speed(float speed)
+{
+    waypoint_speed = speed;
+    return true;
+}
+
+bool AR_WPNav_L1::set_desired_location(const Location& destination, Location next_destination)
+{
+
+    _origin = _destination;
+    _destination = destination;
+    _orig_and_dest_valid = true;
+    _reached_destination = false;
+    Location _current_loc;
+    if (_ahrs.get_location(_current_loc) == false) {
+        return false;
+    }
+
+
+    if (current_auto_waypoint.is_zero()){
+        prev_auto_waypoint.clone(_current_loc);
+        prev_waypoint_radius = _ground_turn_radius;
+        
+    }
+    else{
+        prev_auto_waypoint.clone(current_auto_waypoint);
+        if (prev_auto_waypoint.get_alt_frame() == Location::AltFrame::ABOVE_HOME)
+        {
+            prev_waypoint_radius = prev_auto_waypoint.alt;
+        }
+        else
+        {
+            prev_waypoint_radius = _ground_turn_radius;
+        }
+
+    }
+
+    waypoint_radius = _ground_turn_radius;
+
+
+    current_auto_waypoint.clone(_destination);
+    next_auto_waypoint.clone(next_destination);
+
+    if (current_auto_waypoint.get_alt_frame() == Location::AltFrame::ABOVE_HOME)
+    {
+        waypoint_radius = current_auto_waypoint.alt;
+    }
+
+    start_new_turn();
+    return true;
 }
 
 // update L1 control for waypoint navigation
@@ -870,7 +803,7 @@ void AR_WPNav_L1::update_waypoint_straight(const struct Location &prev_WP, const
     float K_L1 = 4.0f * _L1_damping * _L1_damping;
 
     // Get current position and velocity
-    if (_ahrs.get_position(_current_loc) == false) {
+    if (_ahrs.get_location(_current_loc) == false) {
         // if no GPS loc available, maintain last nav/target_bearing
         _data_is_stale = true;
         return;
@@ -914,7 +847,7 @@ void AR_WPNav_L1::update_waypoint_straight(const struct Location &prev_WP, const
     }
     AB.normalize();
 
-    // Calculate the NE position of the aircraft relative to WP A
+    // Calculate the NE position of the vehicle relative to WP A
     const Vector2f A_air = prev_WP.get_distance_NE(_current_loc);
 
     // calculate distance to target track, for reporting
@@ -942,26 +875,29 @@ void AR_WPNav_L1::update_waypoint_straight(const struct Location &prev_WP, const
     float WP_A_dist = A_air.length();
     float alongTrackDist = A_air * AB;
 
+
     // Create candidate loiter point "temp"
+    /*
     Vector2f candidateLoiterPointOffset = AB * alongTrackDist + (Vector2f(-AB.y *_loiter_side, AB.x*_loiter_side)*(_loiter_radius));
     Location temp;
     temp.clone(prev_WP);
     temp.offset(candidateLoiterPointOffset.x,candidateLoiterPointOffset.y);
     int32_t altOffset = (next_WP.alt-prev_WP.alt)*_current_loc.line_path_proportion(prev_WP, next_WP);
     temp.set_alt_cm(prev_WP.alt + altOffset,temp.get_alt_frame());
-
+    */
     // if "temp" candidate loiter point is not behind our ground heading, allow it to be used if required
     // if the loiter_point has never been set (defaults to 0,0), update it anyway
+    /*
     if(_ahrs.groundspeed_vector()*loiter_point.get_distance_NE(temp)>0 || (loiter_point.lat == 0 && loiter_point.lng == 0)){
         loiter_point.clone(temp);
     }
-
+    */
     // allow an orbit, however this will still use the existing loiter point, rejecting the newer point that is behind it
-    orbit_allowed = 1;
+    //orbit_allowed = 1;
 
 
 
-    if(_use_loiter_vector_alt>0 && AB_length >1.0f){
+    /*if(_use_loiter_vector_alt>0 && AB_length >1.0f){
         float heightToClimb = (next_WP.alt - prev_WP.alt)/100.0f;
         Vector2f xyComponent = -AB *heightToClimb;
         float vertical_component = AB_length;
@@ -971,8 +907,9 @@ void AR_WPNav_L1::update_waypoint_straight(const struct Location &prev_WP, const
         loiter_vector = Vector3f(xyComponent.x,xyComponent.y,vertical_component).normalized();
     }
     else{
-        loiter_vector = Vector3f(0,0,1.0f);
-    }
+    */
+    //loiter_vector = Vector3f(0,0,1.0f);
+    //}
 
     if (WP_A_dist > _L1_dist && alongTrackDist/MAX(WP_A_dist, 1.0f) < -0.7071f)
     {
@@ -1083,7 +1020,7 @@ void AR_WPNav_L1::update_loiter(const struct Location &center_WP, float radius, 
     float K_L1 = 4.0f * _L1_damping * _L1_damping;
 
     //Get current position and velocity
-    if (_ahrs.get_position(_current_loc) == false) {
+    if (_ahrs.get_location(_current_loc) == false) {
         // if no GPS loc available, maintain last nav/target_bearing
         _data_is_stale = true;
         return;
@@ -1116,7 +1053,8 @@ void AR_WPNav_L1::update_loiter(const struct Location &center_WP, float radius, 
         A_air_unit = A_air.normalized();
     } else {
         if (_groundspeed_vector.length() < 0.1f) {
-            A_air_unit = Vector2f(cosf(_ahrs.yaw), sinf(_ahrs.yaw));
+            
+            A_air_unit = Vector2f(cosf(_ahrs.get_yaw() ), sinf(_ahrs.get_yaw()));
         } else {
             A_air_unit = _groundspeed_vector.normalized();
         }
@@ -1236,11 +1174,12 @@ void AR_WPNav_L1::update_heading_hold(int32_t navigation_heading_cd)
 }
 
 // update L1 control for level flight on current heading
+/*
 void AR_WPNav_L1::update_level_flight(void)
 {
     // copy to _target_bearing_cd and _nav_bearing
     _target_bearing_cd = _ahrs.yaw_sensor;
-    _nav_bearing = _ahrs.yaw;
+    _nav_bearing = _ahrs.get_yaw();
     _bearing_error = 0;
     _crosstrack_error = 0;
 
@@ -1251,3 +1190,4 @@ void AR_WPNav_L1::update_level_flight(void)
 
     _data_is_stale = false; // status are correctly updated with current waypoint data
 }
+*/

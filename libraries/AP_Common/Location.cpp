@@ -36,7 +36,7 @@ Location::Location(int32_t latitude, int32_t longitude, int32_t alt_in_cm, AltFr
     set_alt_cm(alt_in_cm, frame);
 }
 
-#if AP_AHRS_ENABLED
+
 Location::Location(const Vector3f &ekf_offset_neu, AltFrame frame)
 {
     zero();

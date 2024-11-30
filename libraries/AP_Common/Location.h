@@ -150,6 +150,15 @@ public:
 
     bool initialised() const { return (lat !=0 || lng != 0 || alt != 0); }
 
+    // wrap longitude at -180e7 to 180e7
+    static int32_t wrap_longitude(int64_t lon);
+
+    // limit latitude to -90e7 to 90e7
+    static int32_t limit_lattitude(int32_t lat);
+    
+    // get lon1-lon2, wrapping at -180e7 to 180e7
+    static int32_t diff_longitude(int32_t lon1, int32_t lon2);
+
     static void calc_orbit_turn_centre(
         const struct Location &previous_wp,
         const struct Location &current_loc,

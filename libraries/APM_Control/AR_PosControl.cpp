@@ -109,6 +109,19 @@ AR_PosControl::AR_PosControl(AR_AttitudeControl& atc) :
     AP_Param::setup_object_defaults(this, var_info);
 }
 
+void AR_PosControl::overRideTurnRate(float turn_rate_rads)
+{
+    _override_turn_rate_rads = turn_rate_rads;
+    _override_turn_rate = true;
+}
+
+void AR_PosControl::overRideSpeed(float speed)
+{
+   
+    _override_speed_ms = speed;
+    _override_speed = true;
+}
+
 // update navigation
 void AR_PosControl::update(float dt)
 {
@@ -205,11 +218,23 @@ void AR_PosControl::update(float dt)
             des_speed = MAX(abs_des_speed_min, vel_target_FR.x);
         }
     }
+
+    if(_override_speed){
+        des_speed = _override_speed_ms;
+    }
+
     _desired_speed = _atc.get_desired_speed_accel_limited(des_speed, dt);
 
     // calculate turn rate from desired lateral acceleration
     _desired_lat_accel = stopping ? 0 : accel_target_FR.y;
-    _desired_turn_rate_rads = _atc.get_turn_rate_from_lat_accel(_desired_lat_accel, _desired_speed);
+    if(!_override_turn_rate) {
+        _desired_turn_rate_rads = _atc.get_turn_rate_from_lat_accel(_desired_lat_accel, _desired_speed);
+    }
+    else{
+        _desired_turn_rate_rads = _override_turn_rate_rads;
+    }
+    _override_turn_rate = false;
+    _override_speed = false;
 }
 
 // true if update has been called recently
@@ -263,6 +288,10 @@ bool AR_PosControl::init()
 
     // clear reversed setting
     _reversed = false;
+
+    _override_turn_rate = false;
+    _override_speed = false;
+    
 
     // initialise ekf xy reset handler
     init_ekf_xy_reset();
