@@ -164,7 +164,7 @@ public:
         const struct Location &current_loc,
         const struct Location &turn_WP,
         const struct Location &next_WP,
-        AP_Float ground_turn_radius,
+        float ground_turn_radius,
         AP_Float ground_turn_early_initiation,
         Location &out_turn_centre,
         Vector3f &out_turn_vector,
