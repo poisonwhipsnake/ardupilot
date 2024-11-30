@@ -153,30 +153,38 @@ void AR_WPNav_L1::update(float dt)
     else{
         _reached_destination = false;
     }
+    float turn_speed = sqrtf(waypoint_radius*_turn_lateral_G*GRAVITY_MSS);
+
+    float slow_down_distance = 0.5f*((speed*speed) -(turn_speed*turn_speed))/_decel_max;
+
+    float target_speed = waypoint_speed;
+
+    if (distance_to_turn < slow_down_distance ){
+        target_speed = turn_speed;
+    }
+    if (!initial_turn_complete()){
+        target_speed = sqrtf(prev_waypoint_radius*_turn_lateral_G*GRAVITY_MSS);
+    }
+
 
     float steering_angle_max = DEG_TO_RAD*_steering_angle_max_param;
     float steering_angle_max_rate = DEG_TO_RAD*_steering_angle_velocity_param;
     float steering_angle_max_accel = DEG_TO_RAD*_steering_angle_acceleration_param;
 
-    float steering_angle = nav_steering_angle(_ahrs.groundspeed_vector().length(), _steering_wheelbase, steering_angle_max, steering_angle_max_rate, steering_angle_max_accel, _ground_turn_radius);
+    float steering_angle = nav_steering_angle(_ahrs.groundspeed_vector().length(), _steering_wheelbase, steering_angle_max, steering_angle_max_rate, steering_angle_max_accel, prev_waypoint_radius);
 
     float turn_radius = _steering_wheelbase/tanf(steering_angle);
 
     // calculate the desired turn rate from velocity and turn radius
     float desired_turn_rate = _ahrs.groundspeed_vector().length()/turn_radius;
 
-    // handle change in max speed
-    _base_speed_max = _speed_max_param;
-    //update_speed_demand(dt);
-
-    //update_speed_max();
-
+    
     _cross_track_error = calc_crosstrack_error(current_loc);
 
     // update position controller
     _pos_control.set_reversed(_reversed);
     _pos_control.overRideTurnRate(desired_turn_rate);
-    _pos_control.overRideSpeed(_base_speed_max);
+    _pos_control.overRideSpeed(target_speed);
     _pos_control.update(dt);
 
 
@@ -356,8 +364,7 @@ Vector2f AR_WPNav_L1::turn_distance_ground_frame(const struct Location &previous
     float _groundspeed_heading_2;
     Vector2f returnValue;
 
-    // Location potential_turn_centre = calc_orbit_turn_centre(previous_wp, current_loc, turn_WP, next_WP, _ground_turn_radius, _ground_turn_early_initiation);
-    Location::calc_orbit_turn_centre(previous_wp, current_loc, turn_WP, next_WP, _ground_turn_radius, _ground_turn_early_initiation,
+    Location::calc_orbit_turn_centre(previous_wp, current_loc, turn_WP, next_WP, waypoint_radius, _ground_turn_early_initiation,
                                      potential_turn_centre, potential_turn_vector, potential_turn_direction, _groundspeed_heading_1, _groundspeed_heading_2, returnValue);
 
     // If you are not in a turn. ie you are flying along "Current_Track"
@@ -425,7 +432,7 @@ void AR_WPNav_L1::update_waypoint(const struct Location &prev_WP, const struct L
             _initial_turn_complete = true;
             auto_turn_centre.zero();
         } else {
-            inTurnRadius = _current_loc.get_distance(auto_turn_centre) < in_turn_error_scalar*_ground_turn_radius;
+            inTurnRadius = _current_loc.get_distance(auto_turn_centre) < in_turn_error_scalar*prev_waypoint_radius;
         }
 
         centre_from_current = _current_loc.get_distance_NE(auto_turn_centre);
@@ -436,13 +443,16 @@ void AR_WPNav_L1::update_waypoint(const struct Location &prev_WP, const struct L
         if(anglePositive * auto_turn_clockwise >0 && inTurnRadius){
             canLoiterTurn = true;
         }
+        else if (!initial_turn_complete()){
+            gcs().send_text(MAV_SEVERITY_INFO, "loiter turn failed");
+        }
        
     }
 
    
     if (!initial_turn_complete() && canLoiterTurn){
 
-        update_loiter(auto_turn_centre,_ground_turn_radius-_ground_turn_correction_factor,auto_turn_clockwise);
+        update_loiter(auto_turn_centre,prev_waypoint_radius-_ground_turn_correction_factor,auto_turn_clockwise);
         _current_nav_type = 1;
     }
     else{
@@ -484,7 +494,7 @@ bool AR_WPNav_L1::set_desired_location(const Location& destination, Location nex
         prev_auto_waypoint.clone(current_auto_waypoint);
         if (prev_auto_waypoint.get_alt_frame() == Location::AltFrame::ABOVE_HOME)
         {
-            prev_waypoint_radius = prev_auto_waypoint.alt;
+            prev_waypoint_radius = prev_auto_waypoint.alt/100;
         }
         else
         {
@@ -501,7 +511,7 @@ bool AR_WPNav_L1::set_desired_location(const Location& destination, Location nex
 
     if (current_auto_waypoint.get_alt_frame() == Location::AltFrame::ABOVE_HOME)
     {
-        waypoint_radius = current_auto_waypoint.alt;
+        waypoint_radius = current_auto_waypoint.alt/100;
     }
 
     start_new_turn();
