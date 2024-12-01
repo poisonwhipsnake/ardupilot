@@ -69,7 +69,6 @@ public:
     void update_heading_hold(int32_t navigation_heading_cd) ;
     void ground_risk_exclusion_event_trigger();
 
-    void update_speed_demand(float dt);
     bool reached_loiter_target(void) ;
 
     int8_t get_current_nav_type(void)  {return _current_nav_type;}
@@ -99,20 +98,6 @@ public:
     static const struct AP_Param::GroupInfo var_info[];
 
 private:
-
-    // update distance and bearing from vehicle's current position to destination
-    void update_oa_distance_and_bearing_to_destination();
-
-    // object avoidance variables
-    bool _oa_active;                // true if we should use alternative destination to avoid obstacles
-    Location _origin_oabak;         // backup of _origin so it can be restored when oa completes
-    Location _destination_oabak;    // backup of _desitnation so it can be restored when oa completes
-    Location _next_destination_oabak; // backup of _next_destination so it can be restored when oa completes
-    Location _oa_origin;            // intermediate origin during avoidance
-    Location _oa_destination;       // intermediate destination during avoidance
-    Location _oa_next_destination;  // intermediate next destination during avoidance
-    float _oa_distance_to_destination; // OA (object avoidance) distance from vehicle to _oa_destination in meters
-    float _oa_wp_bearing_cd;        // OA adjusted heading to _oa_destination in centi-degrees
 
      /////New params for L1////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -197,8 +182,6 @@ private:
     AP_Float _ground_turn_early_initiation;
     AP_Float _steering_angle_max_param;
     AP_Float _speed_max_param;
-    AP_Float _accel_max;
-    AP_Float _decel_max;
     AP_Float _turn_lateral_G;
 
     AP_Float _steering_angle_velocity_param;
@@ -221,10 +204,12 @@ private:
 
     bool _reverse = false;
 
-    float current_speed;
     float waypoint_radius;
     float prev_waypoint_radius;
     float waypoint_speed;
+
+    float saved_steering_angle;
+    float saved_steering_angle_rate;
 
     float get_yaw();
     int32_t get_yaw_sensor() const;

@@ -95,10 +95,6 @@ const AP_Param::GroupInfo AR_WPNav_L1::var_info[] = {
 
     AP_GROUPINFO("SPD_MAX", 28, AR_WPNav_L1, _speed_max_param, 2.0f),
 
-    AP_GROUPINFO("ACCEL_MAX", 29, AR_WPNav_L1, _accel_max, 1.0f),
-
-    AP_GROUPINFO("DECEL_MAX", 30, AR_WPNav_L1, _decel_max, 1.0f),
-
     AP_GROUPINFO("TURN_G",31, AR_WPNav_L1, _turn_lateral_G , 0.1f),
 
     AP_GROUPEND
@@ -111,8 +107,7 @@ void AR_WPNav_L1::init(float speed_max)
     auto_turn_centre.zero();
     next_auto_waypoint.zero();
     prev_auto_waypoint.zero();
-    _base_speed_max = _speed_max_param;
-    current_speed = 0;
+    saved_steering_angle = 0;
 
 
 }
@@ -122,14 +117,26 @@ void AR_WPNav_L1::init(float speed_max)
 void AR_WPNav_L1::update(float dt)
 {
   
+    //time since last update
+    uint32_t time_since_last_update = AP_HAL::millis() - _last_update_ms;
+    if(time_since_last_update > 1000){
+        _data_is_stale = true;
+    }
+    else{
+        _data_is_stale = false;
+    }
+    _last_update_ms = AP_HAL::millis();
+
     // exit immediately if no current location, origin or destination
     Location current_loc;
     float speed;
-    if (!hal.util->get_soft_armed() || !_orig_and_dest_valid || !AP::ahrs().get_location(current_loc) || !_atc.get_forward_speed(speed)) {
+    if (!hal.util->get_soft_armed() || !_orig_and_dest_valid || !AP::ahrs().get_location(current_loc) || !_atc.get_forward_speed(speed) || _data_is_stale ) {
         _desired_speed_limited = _atc.get_desired_speed_accel_limited(0.0f, dt);
         _desired_lat_accel = 0.0f;
         _desired_turn_rate_rads = 0.0f;
         _cross_track_error = 0;
+        saved_steering_angle = 0;
+        saved_steering_angle_rate = 0;
         return;
     }
 
@@ -140,9 +147,10 @@ void AR_WPNav_L1::update(float dt)
     Vector2f turnDistance = turn_distance_ground_frame(prev_auto_waypoint,current_loc, current_auto_waypoint,next_auto_waypoint, 5.0f);
 
     float distance_to_waypoint = current_loc.get_distance_NE(current_auto_waypoint).length() ;
-    float turn_distance = turnDistance.length();
 
-    //float target_speed = current_speed;
+    _distance_to_destination = distance_to_waypoint;
+
+    float turn_distance = turnDistance.length();
 
     float distance_to_turn = distance_to_waypoint - turn_distance;
 
@@ -155,9 +163,11 @@ void AR_WPNav_L1::update(float dt)
     }
     float turn_speed = sqrtf(waypoint_radius*_turn_lateral_G*GRAVITY_MSS);
 
-    float slow_down_distance = 0.5f*((speed*speed) -(turn_speed*turn_speed))/_decel_max;
+    float slow_down_distance = 0.5f*((speed*speed) -(turn_speed*turn_speed))/_atc.get_decel_max();
 
     float target_speed = waypoint_speed;
+
+
 
     if (distance_to_turn < slow_down_distance ){
         target_speed = turn_speed;
@@ -171,9 +181,22 @@ void AR_WPNav_L1::update(float dt)
     float steering_angle_max_rate = DEG_TO_RAD*_steering_angle_velocity_param;
     float steering_angle_max_accel = DEG_TO_RAD*_steering_angle_acceleration_param;
 
-    float steering_angle = nav_steering_angle(_ahrs.groundspeed_vector().length(), _steering_wheelbase, steering_angle_max, steering_angle_max_rate, steering_angle_max_accel, prev_waypoint_radius);
+    float desired_steering_angle = nav_steering_angle(_ahrs.groundspeed_vector().length(), _steering_wheelbase, steering_angle_max, steering_angle_max_rate, steering_angle_max_accel, prev_waypoint_radius);
 
-    float turn_radius = _steering_wheelbase/tanf(steering_angle);
+    //apply acceleration and velocity limits to steering angle change
+    float desired_steering_angle_rate = (desired_steering_angle - saved_steering_angle)/dt;
+    constrain_float(desired_steering_angle_rate, -steering_angle_max_rate, steering_angle_max_rate);
+    float desired_steering_angle_acceleration = (desired_steering_angle_rate - saved_steering_angle_rate)/dt;
+    constrain_float(desired_steering_angle_acceleration, -steering_angle_max_accel, steering_angle_max_accel);
+    saved_steering_angle_rate = saved_steering_angle_rate + (desired_steering_angle_acceleration*dt);
+    saved_steering_angle = saved_steering_angle + (saved_steering_angle_rate*dt);
+
+
+
+
+
+    
+    float turn_radius = _steering_wheelbase/tanf(saved_steering_angle);
 
     // calculate the desired turn rate from velocity and turn radius
     float desired_turn_rate = _ahrs.groundspeed_vector().length()/turn_radius;
@@ -193,17 +216,6 @@ void AR_WPNav_L1::update(float dt)
     _desired_lat_accel = _pos_control.get_desired_lat_accel();
 
 }
-
-
-void AR_WPNav_L1::update_speed_demand(float dt)
-{
-    float desired_speed = _base_speed_max;
-    float speed = _ahrs.groundspeed_vector().length();
-    float speed_error = desired_speed - speed;
-    float speed_change_max = _atc.get_accel_max() * dt;
-    float speed_change = constrain_float(speed_error, -speed_change_max, speed_change_max);
-    _base_speed_max = speed + speed_change;
-}   
 
 
 
