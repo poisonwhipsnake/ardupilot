@@ -97,6 +97,10 @@ const AP_Param::GroupInfo AR_WPNav_L1::var_info[] = {
 
     AP_GROUPINFO("TURN_G",31, AR_WPNav_L1, _turn_lateral_G , 0.1f),
 
+    AP_GROUPINFO("XTR_MAX",32, AR_WPNav_L1, crosstrack_max, 1.0f),
+
+    AP_GROUPINFO("XTR_SPD",33, AR_WPNav_L1, crosstrack_low_speed, 1.0f),
+
     AP_GROUPEND
 };
 
@@ -140,8 +144,6 @@ void AR_WPNav_L1::update(float dt)
         return;
     }
 
-    _last_update_ms = AP_HAL::millis();
-
     update_waypoint( prev_auto_waypoint,current_auto_waypoint);
 
     Vector2f turnDistance = turn_distance_ground_frame(prev_auto_waypoint,current_loc, current_auto_waypoint,next_auto_waypoint, 5.0f);
@@ -165,16 +167,22 @@ void AR_WPNav_L1::update(float dt)
 
     float slow_down_distance = 0.5f*((speed*speed) -(turn_speed*turn_speed))/_atc.get_decel_max();
 
-    float target_speed = waypoint_speed;
+    _target_speed = waypoint_speed;
 
 
 
     if (distance_to_turn < slow_down_distance ){
-        target_speed = turn_speed;
+        _target_speed = turn_speed;
     }
     if (!initial_turn_complete()){
-        target_speed = sqrtf(prev_waypoint_radius*_turn_lateral_G*GRAVITY_MSS);
+        _target_speed = sqrtf(prev_waypoint_radius*_turn_lateral_G*GRAVITY_MSS);
     }
+
+    if( fabsf( crosstrack_error()) > crosstrack_max){
+        _target_speed = crosstrack_low_speed;
+    }
+
+    _turn_distance = turn_distance;
 
 
     float steering_angle_max = DEG_TO_RAD*_steering_angle_max_param;
@@ -183,31 +191,47 @@ void AR_WPNav_L1::update(float dt)
 
     float desired_steering_angle = nav_steering_angle(_ahrs.groundspeed_vector().length(), _steering_wheelbase, steering_angle_max, steering_angle_max_rate, steering_angle_max_accel, prev_waypoint_radius);
 
+    _steering_raw = desired_steering_angle*RAD_TO_DEG;
+
     //apply acceleration and velocity limits to steering angle change
     float desired_steering_angle_rate = (desired_steering_angle - saved_steering_angle)/dt;
-    constrain_float(desired_steering_angle_rate, -steering_angle_max_rate, steering_angle_max_rate);
+
+    if(desired_steering_angle_rate > steering_angle_max_rate){
+        desired_steering_angle_rate = steering_angle_max_rate;
+    }
+    if(desired_steering_angle_rate < -steering_angle_max_rate){
+        desired_steering_angle_rate = -steering_angle_max_rate;
+    }
+   
     float desired_steering_angle_acceleration = (desired_steering_angle_rate - saved_steering_angle_rate)/dt;
-    constrain_float(desired_steering_angle_acceleration, -steering_angle_max_accel, steering_angle_max_accel);
+    
+    if(desired_steering_angle_acceleration > steering_angle_max_accel){
+        desired_steering_angle_acceleration = steering_angle_max_accel;
+    }
+    if(desired_steering_angle_acceleration < -steering_angle_max_accel){
+        desired_steering_angle_acceleration = -steering_angle_max_accel;
+    }
+
     saved_steering_angle_rate = saved_steering_angle_rate + (desired_steering_angle_acceleration*dt);
     saved_steering_angle = saved_steering_angle + (saved_steering_angle_rate*dt);
 
 
-
+    _steering_angle = saved_steering_angle*RAD_TO_DEG;
+    _steering_rate = saved_steering_angle_rate*RAD_TO_DEG;  
 
 
     
-    float turn_radius = _steering_wheelbase/tanf(saved_steering_angle);
+    saved_turn_radius = _steering_wheelbase/tanf(saved_steering_angle);
 
     // calculate the desired turn rate from velocity and turn radius
-    float desired_turn_rate = _ahrs.groundspeed_vector().length()/turn_radius;
+    float desired_turn_rate = _ahrs.groundspeed_vector().length()/saved_turn_radius;
 
-    
     _cross_track_error = calc_crosstrack_error(current_loc);
 
     // update position controller
     _pos_control.set_reversed(_reversed);
     _pos_control.overRideTurnRate(desired_turn_rate);
-    _pos_control.overRideSpeed(target_speed);
+    _pos_control.overRideSpeed(_target_speed);
     _pos_control.update(dt);
 
 
@@ -325,7 +349,7 @@ float AR_WPNav_L1::nav_steering_angle(float groundspeed, float wheelbase, float 
     float ideal_steering_angle = atanf(wheelbase/ideal_turn_radius);
 
     //limit the steering angle to between the max and min steering angle
-    return constrain_float(ideal_steering_angle, -_steering_angle_max, _steering_angle_max);
+    return ideal_steering_angle;
 
 }
 
@@ -575,12 +599,12 @@ void AR_WPNav_L1::update_waypoint_straight(const struct Location &prev_WP, const
     // Calculate time varying control parameters
     // Calculate the L1 length required for specified period
     // 0.3183099 = 1/1/pipi
-    if(!_initial_turn_complete){
-        _L1_dist =  MAX(0.3183099f * _L1_damping * _L1_Auto_Period * groundSpeed, dist_min);
-    }
-    else{
-        _L1_dist =  MAX(0.3183099f * _L1_damping * _L1_period * groundSpeed, dist_min);
-    }
+    //if(!_initial_turn_complete){
+    //    _L1_dist =  MAX(0.3183099f * _L1_damping * _L1_Auto_Period * groundSpeed, dist_min);
+    //}
+    //else{
+    _L1_dist =  MAX(0.3183099f * _L1_damping * _L1_period * groundSpeed, dist_min);
+    //}
 
     // Calculate the NE position of WP B relative to WP A
     Vector2f AB = prev_WP.get_distance_NE(next_WP);
@@ -708,12 +732,12 @@ void AR_WPNav_L1::update_loiter(const struct Location &center_WP, float radius, 
     struct Location _current_loc;
 
     // Calculate guidance gains used by PD loop (used during circle tracking)
-    float omega = (6.2832f / _L1_period);
+    float omega = (6.2832f / _L1_Auto_Period);
     float Kx = omega * omega;
     float Kv = 2.0f * _L1_damping * omega;
 
     // Calculate L1 gain required for specified damping (used during waypoint capture)
-    float K_L1 = 4.0f * _L1_damping * _L1_damping;
+    //float K_L1 = 4.0f * _L1_damping * _L1_damping;
 
     //Get current position and velocity
     if (_ahrs.get_location(_current_loc) == false) {
@@ -735,7 +759,7 @@ void AR_WPNav_L1::update_loiter(const struct Location &center_WP, float radius, 
     // Calculate time varying control parameters
     // Calculate the L1 length required for specified period
     // 0.3183099 = 1/pi
-    _L1_dist = 0.3183099f * _L1_damping * _L1_period * groundSpeed;
+    //_L1_dist = 0.3183099f * _L1_damping * _L1_Auto_Period * groundSpeed;
 
     //Calculate the NE position of the aircraft relative to WP A
     const Vector2f A_air = center_WP.get_distance_NE(_current_loc);
@@ -767,7 +791,7 @@ void AR_WPNav_L1::update_loiter(const struct Location &center_WP, float radius, 
     Nu = constrain_float(Nu, -M_PI_2, M_PI_2); //Limit Nu to +- Pi/2
 
     //Calculate lat accln demand to capture center_WP (use L1 guidance law)
-    float latAccDemCap = K_L1 * groundSpeed * groundSpeed / _L1_dist * sinf(Nu);
+    //float latAccDemCap = K_L1 * groundSpeed * groundSpeed / _L1_dist * sinf(Nu);
 
     //Calculate radial position and velocity errors
     float xtrackVelCirc = -ltrackVelCap; // Radial outbound velocity - reuse previous radial inbound velocity
@@ -812,17 +836,17 @@ void AR_WPNav_L1::update_loiter(const struct Location &center_WP, float radius, 
     // Perform switchover between 'capture' and 'circle' modes at the
     // point where the commands cross over to achieve a seamless transfer
     // Only fly 'capture' mode if outside the circle
-    if (xtrackErrCirc > 0.0f && loiter_direction * latAccDemCap < loiter_direction * latAccDemCirc) {
-        _latAccDem = latAccDemCap;
-        _WPcircle = false;
-        _bearing_error = Nu; // angle between demanded and achieved velocity vector, +ve to left of track
-        _nav_bearing = atan2f(-A_air_unit.y , -A_air_unit.x); // bearing (radians) from AC to L1 point
-    } else {
+    //if (xtrackErrCirc > 0.0f && loiter_direction * latAccDemCap < loiter_direction * latAccDemCirc) {
+    //    _latAccDem = latAccDemCap;
+    //   _WPcircle = false;
+    //    _bearing_error = Nu; // angle between demanded and achieved velocity vector, +ve to left of track
+    //    _nav_bearing = atan2f(-A_air_unit.y , -A_air_unit.x); // bearing (radians) from AC to L1 point
+    //} else {
         _latAccDem = latAccDemCirc;
         _WPcircle = true;
         _bearing_error = 0.0f; // bearing error (radians), +ve to left of track
         _nav_bearing = atan2f(-A_air_unit.y , -A_air_unit.x); // bearing (radians)from AC to L1 point
-    }
+    //}
 
     _data_is_stale = false; // status are correctly updated with current waypoint data
 }

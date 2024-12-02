@@ -83,6 +83,25 @@ public:
         _L1_period.set_default(period);
     }
 
+    float get_turn_distance(void) const  {return _turn_distance;} 
+
+    float get_saved_steering(void) const  {return _steering_angle;}
+
+    float get_saved_steering_rate(void) const  {return _steering_rate;}
+
+    float get_saved_speed(void) const  {return _target_speed;}
+
+    float get_turn_radius(void) const  {return saved_turn_radius;}
+
+    int16_t get_initial_turn_complete(void) const  {return _initial_turn_complete?1:0;}
+
+    float get_wp_speed(void) const  {return waypoint_speed;}
+
+    float get_wp_radius(void) const  {return waypoint_radius;}
+
+    float get_raw_steering(void) const  {return _steering_raw;}
+
+
     void set_data_is_stale(void)  {
         _data_is_stale = true;
     }
@@ -137,8 +156,7 @@ private:
 
     float _crosstrack_velo_portion;
 
-    float _steering_position;
-    float _steering_rate;
+    float _steering_raw;
 
     AP_Float _emergency_stop_deceleration;
 
@@ -187,6 +205,8 @@ private:
     AP_Float _steering_angle_velocity_param;
     AP_Float _steering_angle_acceleration_param;
     AP_Float _steering_wheelbase;
+    AP_Float crosstrack_max;
+    AP_Float crosstrack_low_speed;
     bool _data_is_stale = true;
 
 
@@ -209,7 +229,16 @@ private:
     float waypoint_speed;
 
     float saved_steering_angle;
+    float _steering_angle;
     float saved_steering_angle_rate;
+     float _steering_rate;
+
+    float saved_turn_radius;
+
+    float _turn_distance;
+
+    float _target_speed;
+    float _raw_steering;    
 
     float get_yaw();
     int32_t get_yaw_sensor() const;

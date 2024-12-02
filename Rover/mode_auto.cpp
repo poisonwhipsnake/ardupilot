@@ -277,6 +277,181 @@ float ModeAuto::get_distance_to_destination() const
     return 0.0f;
 }
 
+float ModeAuto::get_turn_distance() const
+{
+    switch (_submode) {
+    case SubMode::WP:
+        return g2.wp_nav.get_turn_distance();
+    case SubMode::HeadingAndSpeed:
+    case SubMode::Stop:
+    case SubMode::RTL:
+    case SubMode::Loiter:
+    case SubMode::Guided:
+    case SubMode::NavScriptTime:
+    case SubMode::Circle:
+        return 0.0f;
+    }
+
+    // this line should never be reached
+    return 0.0f;
+}   
+
+float ModeAuto::get_saved_steering() const
+{
+    switch (_submode) {
+    case SubMode::WP:
+        return g2.wp_nav.get_saved_steering();
+    case SubMode::HeadingAndSpeed:
+    case SubMode::Stop:
+    case SubMode::RTL:
+    case SubMode::Loiter:
+    case SubMode::Guided:
+    case SubMode::NavScriptTime:
+    case SubMode::Circle:
+        return 0.0f;
+    }
+
+    // this line should never be reached
+    return 0.0f;
+}   
+
+
+float ModeAuto::get_saved_steering_rate() const
+{
+    switch (_submode) {
+    case SubMode::WP:
+        return g2.wp_nav.get_saved_steering_rate();
+    case SubMode::HeadingAndSpeed:
+    case SubMode::Stop:
+    case SubMode::RTL:
+    case SubMode::Loiter:
+    case SubMode::Guided:
+    case SubMode::NavScriptTime:
+    case SubMode::Circle:
+        return 0.0f;
+    }
+
+    // this line should never be reached
+    return 0.0f;
+}
+
+float ModeAuto::get_saved_speed() const
+{
+    switch (_submode) {
+    case SubMode::WP:
+        return g2.wp_nav.get_saved_speed();
+    case SubMode::HeadingAndSpeed:
+    case SubMode::Stop:
+    case SubMode::RTL:
+    case SubMode::Loiter:
+    case SubMode::Guided:
+    case SubMode::NavScriptTime:
+    case SubMode::Circle:
+        return 0.0f;
+    }
+
+    // this line should never be reached
+    return 0.0f;
+}
+
+float ModeAuto::get_turn_radius() const
+{
+    switch (_submode) {
+    case SubMode::WP:
+        return g2.wp_nav.get_turn_radius();
+    case SubMode::HeadingAndSpeed:
+    case SubMode::Stop:
+    case SubMode::RTL:
+    case SubMode::Loiter:
+    case SubMode::Guided:
+    case SubMode::NavScriptTime:
+    case SubMode::Circle:
+        return 0.0f;
+    }
+
+    // this line should never be reached
+    return 0.0f;
+}
+
+
+int16_t ModeAuto::get_initial_turn_complete() const
+{
+    switch (_submode) {
+    case SubMode::WP:
+        return g2.wp_nav.get_initial_turn_complete();
+    case SubMode::HeadingAndSpeed:
+    case SubMode::Stop:
+    case SubMode::RTL:
+    case SubMode::Loiter:
+    case SubMode::Guided:
+    case SubMode::NavScriptTime:
+    case SubMode::Circle:
+        return 0;
+    }
+
+    // this line should never be reached
+    return 0;
+}
+
+
+float ModeAuto::get_wp_speed() const
+{
+    switch (_submode) {
+    case SubMode::WP:
+        return g2.wp_nav.get_wp_speed();
+    case SubMode::HeadingAndSpeed:
+    case SubMode::Stop:
+    case SubMode::RTL:
+    case SubMode::Loiter:
+    case SubMode::Guided:
+    case SubMode::NavScriptTime:
+    case SubMode::Circle:
+        return 0.0f;
+    }
+
+    // this line should never be reached
+    return 0.0f;
+}
+
+float ModeAuto::get_wp_radius() const
+{
+    switch (_submode) {
+    case SubMode::WP:
+        return g2.wp_nav.get_wp_radius();
+    case SubMode::HeadingAndSpeed:
+    case SubMode::Stop:
+    case SubMode::RTL:
+    case SubMode::Loiter:
+    case SubMode::Guided:
+    case SubMode::NavScriptTime:
+    case SubMode::Circle:
+        return 0.0f;
+    }
+
+    // this line should never be reached
+    return 0.0f;
+}
+
+
+float ModeAuto::get_raw_steering() const
+{
+    switch (_submode) {
+    case SubMode::WP:
+        return g2.wp_nav.get_raw_steering();
+    case SubMode::HeadingAndSpeed:
+    case SubMode::Stop:
+    case SubMode::RTL:
+    case SubMode::Loiter:
+    case SubMode::Guided:
+    case SubMode::NavScriptTime:
+    case SubMode::Circle:
+        return 0.0f;
+    }
+
+    // this line should never be reached
+    return 0.0f;
+}
+
 // get desired location
 bool ModeAuto::get_desired_location(Location& destination) const
 {

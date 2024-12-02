@@ -103,6 +103,24 @@ public:
     // return distance (in meters) to destination
     virtual float get_distance_to_destination() const { return 0.0f; }
 
+    virtual float get_turn_distance() const { return 0.0f; }
+
+    virtual float get_saved_steering() const { return 0.0f; }
+
+    virtual float get_saved_steering_rate() const { return 0.0f; }
+
+    virtual float get_saved_speed() const { return 0.0f; }
+    
+    virtual float get_turn_radius() const { return 0.0f; }
+
+    virtual int16_t get_initial_turn_complete() const { return 0; }
+
+    virtual float get_wp_speed() const { return 0.0f; }
+
+    virtual float get_wp_radius() const { return 0.0f; }
+
+    virtual float get_raw_steering() const { return 0.0f; }
+
     // return desired location (used in Guided, Auto, RTL, etc)
     // return true on success, false if there is no valid destination
     virtual bool get_desired_location(Location& destination) const WARN_IF_UNUSED { return false; }
@@ -261,6 +279,24 @@ public:
 
     // return distance (in meters) to destination
     float get_distance_to_destination() const override;
+
+    float get_turn_distance() const override;
+
+    float get_saved_steering() const override;
+
+    float get_saved_steering_rate() const override;
+
+    float get_saved_speed() const override;
+
+    float get_turn_radius() const override;
+
+    int16_t get_initial_turn_complete() const override; 
+
+    float get_wp_speed() const override;
+
+    float get_wp_radius() const override;
+
+    float get_raw_steering() const override;
 
     // get or set desired location
     bool get_desired_location(Location& destination) const override WARN_IF_UNUSED;

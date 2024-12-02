@@ -21,6 +21,7 @@
 enum LoggingParameters {
     LOG_THR_MSG,
     LOG_NTUN_MSG,
+    LOG_NTUN2_MSG,
     LOG_STEERING_MSG,
     LOG_GUIDEDTARGET_MSG,
 };
