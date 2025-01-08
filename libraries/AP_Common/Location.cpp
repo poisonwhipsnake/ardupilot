@@ -537,6 +537,9 @@ void Location::calc_orbit_turn_centre(
     // If you have ticked off a waypoint, you are either currently turning on to the track between that ticked off waypoint and the next, or are travelling along that track.
     Vector2f Current_Track_Full = previous_wp.get_distance_NE(turn_WP);     // Linear track between last ticked off WP and next. Is the track to turn onto when completing a turn
     Vector2f Next_Track_Full = turn_WP.get_distance_NE(next_WP);            // Linear track between the next WP and the one after - is used for
+    if (Current_Track_Full.length() < 0.1f || Next_Track_Full.length() < 0.1f) {
+        return;
+    }
     Vector2f Current_Track = Current_Track_Full.normalized();               // Unit vector of "current track"
     Vector2f Next_Track = Next_Track_Full.normalized();                     // Unit vector of "next track"
     Vector3f Current_Vector = Vector3f(Current_Track_Full.x,Current_Track_Full.y,(turn_WP.alt-previous_wp.alt)/100.0f); ////I think this assumes the WP have the same height reference frame

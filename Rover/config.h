@@ -84,3 +84,13 @@
  #define OSD_ENABLED DISABLED
 #endif
 
+// enable networking of the vehicle
+#ifndef NETWORK_ENABLED
+ #define NETWORK_ENABLED ENABLE
+#endif
+
+// enable PPP
+#ifndef PPP_ENABLED
+ #define PPP_ENABLED ENABLE
+#endif
+

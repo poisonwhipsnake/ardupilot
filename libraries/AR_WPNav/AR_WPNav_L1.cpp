@@ -65,7 +65,7 @@ const AP_Param::GroupInfo AR_WPNav_L1::var_info[] = {
     // @Units: 1/s
     // @Range: 0 89
     // @User: Advanced
-    AP_GROUPINFO("A_PERIOD", 9, AR_WPNav_L1, _L1_Auto_Period, 40.0f),
+    AP_GROUPINFO("A_PERIOD", 9, AR_WPNav_L1, _L1_Auto_Period, 20.0f),
 
     AP_GROUPINFO("TEXIT", 10, AR_WPNav_L1, _L1_Turn_Exit_Fraction, 1.0f),
 
@@ -73,11 +73,11 @@ const AP_Param::GroupInfo AR_WPNav_L1::var_info[] = {
 
     AP_GROUPINFO("TDELAY", 12, AR_WPNav_L1, _L1_Turn_Delay,  0.0f),
 
-    AP_GROUPINFO("GTR",14, AR_WPNav_L1, _ground_turn_radius, 20.0),
+    AP_GROUPINFO("GTR",14, AR_WPNav_L1, _ground_turn_radius, 10.0),
 
-    AP_GROUPINFO("GTCF",15, AR_WPNav_L1, _ground_turn_correction_factor, 20.0),
+    AP_GROUPINFO("GTCF",15, AR_WPNav_L1, _ground_turn_correction_factor, 0.0),
 
-    AP_GROUPINFO("GTEI",16, AR_WPNav_L1, _ground_turn_early_initiation, 50.0),
+    AP_GROUPINFO("GTEI",16, AR_WPNav_L1, _ground_turn_early_initiation, 0.0),
 
     AP_GROUPINFO("T_ERROR",19, AR_WPNav_L1, _max_auto_point_distance, 1000.0f),
 
@@ -476,6 +476,9 @@ Vector2f AR_WPNav_L1::turn_distance_ground_frame(const struct Location &previous
     }
     // If you are in a turn. The exit track is the angle of the "Current Track" that you are aiming to turn onto.
     else{
+        if (returnValue.length() < 0.1f) {
+            return returnValue;
+        }
         returnValue.normalize();                        // If in turn, make return value a return vector
         auto_turn_exit_track = _groundspeed_heading_1;  // set auto_turn_exit_track to be the linear track between the WP we just ticked off and are in the turn, and the WP following
     }
