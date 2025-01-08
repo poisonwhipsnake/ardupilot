@@ -14,11 +14,13 @@
  */
 
 #include <AP_AHRS/AP_AHRS.h>
+#include <AP_Math/AP_Math.h> // Include this header for lowpass function
 #include <AP_Common/AP_Common.h> // Include this header for constrain_float
 #include <AP_HAL/AP_HAL.h>
 #include "AR_WPNav_L1.h"
 #include <GCS_MAVLink/GCS.h>
 #include <AP_InternalError/AP_InternalError.h>
+#include <AP_Logger/AP_Logger.h>
 
 extern const AP_HAL::HAL& hal;
 
@@ -47,7 +49,7 @@ const AP_Param::GroupInfo AR_WPNav_L1::var_info[] = {
     // @Range: 0 0.1
     // @Increment: 0.01
     // @User: Advanced
-    AP_GROUPINFO("XTRACK_I",   2, AR_WPNav_L1, _L1_xtrack_i_gain, 0.1),
+    AP_GROUPINFO("XTRACK_I",   2, AR_WPNav_L1, _L1_xtrack_i_gain, 0.0),
 
     // @Param: Turn Rate correction factor
 	// @DisplayName: Maximum Roll Acceleration
@@ -101,6 +103,12 @@ const AP_Param::GroupInfo AR_WPNav_L1::var_info[] = {
 
     AP_GROUPINFO("XTR_SPD",33, AR_WPNav_L1, crosstrack_low_speed, 1.0f),
 
+    AP_GROUPINFO("MIN_L1",34, AR_WPNav_L1, _min_L1, 10.0f),
+
+    AP_GROUPINFO("RATE_Hz",35, AR_WPNav_L1, _rate_filter_hz, 10.0f),
+
+    AP_GROUPINFO("STR_A_SF",36, AR_WPNav_L1, _steering_angle_accel_safety_factor, 2.0f),
+
     AP_GROUPEND
 };
 
@@ -144,7 +152,7 @@ void AR_WPNav_L1::update(float dt)
         return;
     }
 
-    update_waypoint( prev_auto_waypoint,current_auto_waypoint);
+    update_waypoint( prev_auto_waypoint,current_auto_waypoint,_min_L1);
 
     Vector2f turnDistance = turn_distance_ground_frame(prev_auto_waypoint,current_loc, current_auto_waypoint,next_auto_waypoint, 5.0f);
 
@@ -184,6 +192,7 @@ void AR_WPNav_L1::update(float dt)
 
     _turn_distance = turn_distance;
 
+    _raw_angle_rate_filter.set_cutoff_frequency(_rate_filter_hz);
 
     float steering_angle_max = DEG_TO_RAD*_steering_angle_max_param;
     float steering_angle_max_rate = DEG_TO_RAD*_steering_angle_velocity_param;
@@ -202,15 +211,69 @@ void AR_WPNav_L1::update(float dt)
     if(desired_steering_angle_rate < -steering_angle_max_rate){
         desired_steering_angle_rate = -steering_angle_max_rate;
     }
-   
+
+    raw_angle_rate = (desired_steering_angle - _previous_desired_angle)/dt;
+
+    //smooth raw angle rate with lowpass filter
+
+    
+
+    smoothed_raw_angle_rate = _raw_angle_rate_filter.apply(raw_angle_rate,dt);
+
+    float time_to_sync_rate = (fabsf(smoothed_raw_angle_rate - saved_steering_angle_rate))/(steering_angle_max_accel);
+
+    float raw_change = smoothed_raw_angle_rate*time_to_sync_rate;
+
+    float smoothed_change = 0.5*(smoothed_raw_angle_rate + saved_steering_angle_rate)*time_to_sync_rate;
+
+    float current_error = desired_steering_angle - saved_steering_angle;
+
+
+    //bool trigger_syncing = (fabsf(current_error) < (_steering_angle_accel_safety_factor*fabsf(smoothed_change-raw_change)));// && (current_error*smoothed_change > 0);
+
+    bool trigger_syncing = false;
+    bool trigger_accel_positive = false;
+    
+    if ((current_error>0) && ((smoothed_change - raw_change)*_steering_angle_accel_safety_factor)>current_error){
+        trigger_syncing = true;
+
+    }
+    if ((current_error<0) && ((smoothed_change - raw_change)*_steering_angle_accel_safety_factor)<current_error){
+        trigger_syncing = true;
+        trigger_accel_positive = true;
+    }
+
+    //bool trigger_accel_positive = smoothed_raw_angle_rate - saved_steering_angle_rate >0;
+
+
+    AP::logger().Write("DUBG", "TimeUS,rar,ssr,tts,rc,sc,ce,ts,tap", "Qffffffii",
+                                        AP_HAL::micros64(),
+                                        smoothed_raw_angle_rate*100,
+                                        saved_steering_angle_rate*100,
+                                        time_to_sync_rate*100,
+                                        raw_change*100,
+                                        smoothed_change*100,
+                                        current_error*100,
+                                        trigger_syncing*100,
+                                        trigger_accel_positive*100);
+
+
     float desired_steering_angle_acceleration = (desired_steering_angle_rate - saved_steering_angle_rate)/dt;
     
-    if(desired_steering_angle_acceleration > steering_angle_max_accel){
+    if(desired_steering_angle_acceleration > steering_angle_max_accel ){
         desired_steering_angle_acceleration = steering_angle_max_accel;
     }
-    if(desired_steering_angle_acceleration < -steering_angle_max_accel){
+    if(desired_steering_angle_acceleration < -steering_angle_max_accel ){
         desired_steering_angle_acceleration = -steering_angle_max_accel;
     }
+
+    if( (trigger_accel_positive && trigger_syncing)){
+        desired_steering_angle_acceleration = steering_angle_max_accel;
+    }
+    if((!trigger_accel_positive && trigger_syncing)){
+        desired_steering_angle_acceleration = -steering_angle_max_accel;
+    }
+
 
     saved_steering_angle_rate = saved_steering_angle_rate + (desired_steering_angle_acceleration*dt);
     saved_steering_angle = saved_steering_angle + (saved_steering_angle_rate*dt);
@@ -227,6 +290,8 @@ void AR_WPNav_L1::update(float dt)
     float desired_turn_rate = _ahrs.groundspeed_vector().length()/saved_turn_radius;
 
     _cross_track_error = calc_crosstrack_error(current_loc);
+
+    _previous_desired_angle = desired_steering_angle;
 
     // update position controller
     _pos_control.set_reversed(_reversed);
@@ -317,7 +382,7 @@ float AR_WPNav_L1::nav_steering_angle(float groundspeed, float wheelbase, float 
     float turn_steering_angle = atanf(wheelbase/turn_radius);
 
     // turn radius resulting from half the steering angle required for the planned turn rate
-    float thetaTR = wheelbase/tanf(turn_steering_angle*0.5f);
+    float thetaTR = wheelbase/tanf(turn_steering_angle);
 
     // theta is the heading change between straight flight and full commanded bank angle
     float thetaTime = (_steering_angle_max/_steering_angle_max_rate) + (_steering_angle_max_rate/_steering_angle_max_accel);    

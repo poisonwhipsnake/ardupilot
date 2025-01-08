@@ -158,6 +158,8 @@ private:
 
     float _steering_raw;
 
+    float _previous_desired_angle;
+
     AP_Float _emergency_stop_deceleration;
 
     AP_Float _ground_risk_filter_tc;
@@ -201,6 +203,9 @@ private:
     AP_Float _steering_angle_max_param;
     AP_Float _speed_max_param;
     AP_Float _turn_lateral_G;
+    AP_Float _min_L1;
+    AP_Float _rate_filter_hz;
+    AP_Float _steering_angle_accel_safety_factor;
 
     AP_Float _steering_angle_velocity_param;
     AP_Float _steering_angle_acceleration_param;
@@ -239,6 +244,12 @@ private:
 
     float _target_speed;
     float _raw_steering;    
+
+
+    float raw_angle_rate;
+    float smoothed_raw_angle_rate;
+    LowPassFilterFloat _raw_angle_rate_filter;
+
 
     float get_yaw();
     int32_t get_yaw_sensor() const;
