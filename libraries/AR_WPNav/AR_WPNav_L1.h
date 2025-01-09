@@ -208,6 +208,7 @@ private:
     AP_Float _min_L1;
     AP_Float _rate_filter_hz;
     AP_Float _steering_angle_accel_safety_factor;
+    AP_Float _L1_Groundspeed_Exponent;
 
     AP_Float _steering_angle_velocity_param;
     AP_Float _steering_angle_acceleration_param;

@@ -109,6 +109,8 @@ const AP_Param::GroupInfo AR_WPNav_L1::var_info[] = {
 
     AP_GROUPINFO("STR_A_SF",36, AR_WPNav_L1, _steering_angle_accel_safety_factor, 2.0f),
 
+    AP_GROUPINFO("L1_GS_EXP",37 , AR_WPNav_L1, _L1_Groundspeed_Exponent, 1.0f),
+
     AP_GROUPEND
 };
 
@@ -671,7 +673,12 @@ void AR_WPNav_L1::update_waypoint_straight(const struct Location &prev_WP, const
     //    _L1_dist =  MAX(0.3183099f * _L1_damping * _L1_Auto_Period * groundSpeed, dist_min);
     //}
     //else{
-    _L1_dist =  MAX(0.3183099f * _L1_damping * _L1_period * groundSpeed, dist_min);
+    float exponential_groundspeed = 1.0f;
+    if(groundSpeed > 1.0f){
+        exponential_groundspeed = powf(groundSpeed, _L1_Groundspeed_Exponent);
+    }
+
+    _L1_dist =  MAX(0.3183099f * _L1_damping * _L1_period * exponential_groundspeed, dist_min);
     //}
 
     // Calculate the NE position of WP B relative to WP A
