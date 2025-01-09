@@ -373,6 +373,25 @@ float ModeAuto::get_turn_radius() const
     return 0.0f;
 }
 
+float ModeAuto::get_xtrack_i() const
+{
+    switch (_submode) {
+    case SubMode::WP:
+        return g2.wp_nav.get_xtrack_i();
+    case SubMode::HeadingAndSpeed:
+    case SubMode::Stop:
+    case SubMode::RTL:
+    case SubMode::Loiter:
+    case SubMode::Guided:
+    case SubMode::NavScriptTime:
+    case SubMode::Circle:
+        return 0.0f;
+    }
+
+    // this line should never be reached
+    return 0.0f;
+}
+
 
 int16_t ModeAuto::get_initial_turn_complete() const
 {

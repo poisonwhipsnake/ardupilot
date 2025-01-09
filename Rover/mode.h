@@ -113,6 +113,8 @@ public:
     
     virtual float get_turn_radius() const { return 0.0f; }
 
+    virtual float get_xtrack_i() const { return 0.0f; }
+
     virtual int16_t get_initial_turn_complete() const { return 0; }
 
     virtual float get_wp_speed() const { return 0.0f; }
@@ -289,6 +291,8 @@ public:
     float get_saved_speed() const override;
 
     float get_turn_radius() const override;
+
+    float get_xtrack_i() const override;
 
     int16_t get_initial_turn_complete() const override; 
 

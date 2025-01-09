@@ -50,7 +50,7 @@ public:
     float nav_bearing(void) const  { return _nav_bearing;}
     float crosstrack_velo(void) const ;
 
-    float crosstrack_error_integrator(void) const  { return _L1_xtrack_i; }
+    float get_xtrack_i(void) const  {return _L1_xtrack_i;}
 
     int32_t target_bearing_cd(void) const ;
    
@@ -100,6 +100,8 @@ public:
     float get_wp_radius(void) const  {return waypoint_radius;}
 
     float get_raw_steering(void) const  {return _steering_raw;}
+
+    
 
 
     void set_data_is_stale(void)  {

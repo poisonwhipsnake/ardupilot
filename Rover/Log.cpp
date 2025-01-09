@@ -135,6 +135,7 @@ struct PACKED log_Nav_Tuning_2 {
     int16_t initial_turn_complete;
     float wp_speed;
     float wp_radius;
+    float xti;
 
 
 };
@@ -164,7 +165,8 @@ void Rover::Log_Write_Nav_Tuning()
         turn_radius         : control_mode->get_turn_radius(),
         initial_turn_complete : control_mode->get_initial_turn_complete(),
         wp_speed            : control_mode->get_wp_speed(),
-        wp_radius           : control_mode->get_wp_radius()
+        wp_radius           : control_mode->get_wp_radius(),
+        xti                 : control_mode->get_xtrack_i()
     };
     logger.WriteBlock(&pkt2, sizeof(pkt2));
 
@@ -315,7 +317,7 @@ const LogStructure Rover::log_structure[] = {
 // @LoggerMessage: NTUN2
 // @Description: Navigation Tuning information - e.g. vehicle destination
     { LOG_NTUN2_MSG, sizeof(log_Nav_Tuning_2),
-      "NTU2", "Qffffcff", "TimeUS,Str,StrR,Spd,TR,ITC,ws,wr", "srEnm-nm", "F0000000" },
+      "NTU2", "Qffffcfff", "TimeUS,Str,StrR,Spd,TR,ITC,ws,wr,xti", "srEnm-nm-", "F00000000" },
     
 // @LoggerMessage: STER
 // @Description: Steering related messages

@@ -90,8 +90,8 @@ const AP_Scheduler::Task Rover::scheduler_tasks[] = {
     SCHED_TASK(update_wheel_encoder,   50,    200,  36),
     SCHED_TASK(update_compass,         10,    200,  39),
 #if HAL_LOGGING_ENABLED
-    SCHED_TASK(update_logging1,        10,    200,  45),
-    SCHED_TASK(update_logging2,        10,    200,  48),
+    SCHED_TASK(update_logging1,        50,    200,  45),
+    SCHED_TASK(update_logging2,        50,    200,  48),
 #endif
     SCHED_TASK_CLASS(GCS,                 (GCS*)&rover._gcs,       update_receive,                    400,    500,  51),
     SCHED_TASK_CLASS(GCS,                 (GCS*)&rover._gcs,       update_send,                       400,   1000,  54),
