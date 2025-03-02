@@ -22,6 +22,7 @@
 #include <stdint.h>
 
 // Libraries
+#include <AP_ADSB/AP_ADSB.h>
 #include <AP_Common/AP_Common.h>
 #include <AP_HAL/AP_HAL.h>
 #include <AP_BattMonitor/AP_BattMonitor.h>          // Battery monitor library
@@ -161,6 +162,8 @@ private:
     AP_OpticalFlow optflow;
 #endif
 
+
+
 #if OSD_ENABLED || OSD_PARAM_ENABLED
     AP_OSD osd;
 #endif
@@ -170,6 +173,10 @@ private:
     // GCS handling
     GCS_Rover _gcs;  // avoid using this; use gcs()
     GCS_Rover &gcs() { return _gcs; }
+
+#if HAL_ADSB_ENABLED
+    AP_ADSB adsb;
+#endif
 
     // RC Channels:
     RC_Channels_Rover &rc() { return g2.rc_channels; }

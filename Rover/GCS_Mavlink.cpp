@@ -381,7 +381,7 @@ bool GCS_MAVLINK_Rover::try_send_message(enum ap_message id)
         break;
 
     case MSG_ADSB_VEHICLE: {
-        AP_OADatabase *oadb = AP::oadatabase();
+        /*AP_OADatabase *oadb = AP::oadatabase();
         if (oadb != nullptr) {
             CHECK_PAYLOAD_SIZE(ADSB_VEHICLE);
             uint16_t interval_ms = 0;
@@ -389,6 +389,9 @@ bool GCS_MAVLINK_Rover::try_send_message(enum ap_message id)
                 oadb->send_adsb_vehicle(chan, interval_ms);
             }
         }
+            */
+       
+        rover.adsb.send_adsb_vehicle(chan);
         break;
     }
 

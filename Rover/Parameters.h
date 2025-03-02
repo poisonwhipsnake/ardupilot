@@ -200,6 +200,12 @@ public:
         k_param_camera_mount,
         k_param_camera_mount2,          // unused
 
+
+        //
+        // adsb
+        //
+        k_param_adsb,
+
         //
         // 230: PID Controllers
         k_param_pidNavSteer = 230,
