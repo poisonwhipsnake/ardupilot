@@ -197,6 +197,10 @@ public:
 
     void send_adsb_out_status(const mavlink_channel_t chan) const;
 
+    bool set_vehicle_now(const uint16_t index, uint32_t ICAO_address, float lat, float lon);
+
+    bool set_vehicle_now(const uint16_t index, uint32_t ICAO_address, float lat, float lon, float altitude, uint16_t heading, uint16_t hor_velocity, uint16_t ver_velocity, uint16_t flags, uint16_t squawk, uint8_t altitude_type, uint8_t emitter_type, uint8_t tslc);
+
     // when true, a vehicle with that ICAO was found in database and the vehicle is populated.
     bool get_vehicle_by_ICAO(const uint32_t icao, adsb_vehicle_t &vehicle) const;
 

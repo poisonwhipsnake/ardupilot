@@ -617,9 +617,59 @@ void AP_ADSB::set_vehicle(const uint16_t index, const adsb_vehicle_t &vehicle)
 #endif
 }
 
+bool AP_ADSB::set_vehicle_now(uint16_t index, uint32_t ICAO_address, float lat, float lon){
+    return set_vehicle_now(index,ICAO_address,lat, lon,0,0,0,0,0,0,0,ADSB_EMITTER_POINT_OBSTACLE,0);
+}
+
+bool AP_ADSB::set_vehicle_now(uint16_t index, uint32_t ICAO_address, float lat, float lon, float altitude, uint16_t heading, uint16_t hor_velocity, uint16_t ver_velocity, uint16_t flags, uint16_t squawk, uint8_t altitude_type, uint8_t emitter_type, uint8_t tslc){
+    
+    
+    if (index >= in_state.list_size_allocated) {
+        // out of range
+        return false;
+    }
+
+    if(in_state.vehicle_count <= index){
+        in_state.vehicle_count = index + 1;
+    }
+
+    char callsign[9] = "RadarObs";
+
+    adsb_vehicle_t vehicle;
+    mavlink_adsb_vehicle_t vehicle_info;
+
+    vehicle_info.ICAO_address = ICAO_address;
+    vehicle_info.lat = lat;
+    vehicle_info.lon = lon;
+    vehicle_info.altitude = altitude;
+    vehicle_info.heading = heading;
+    vehicle_info.hor_velocity = hor_velocity;
+    vehicle_info.ver_velocity = ver_velocity;
+    vehicle_info.flags = flags;
+    vehicle_info.squawk = squawk;
+    strncpy(vehicle_info.callsign, callsign, sizeof(vehicle_info.callsign));
+    vehicle_info.altitude_type = altitude_type;
+    vehicle_info.emitter_type = emitter_type;
+    vehicle_info.tslc = tslc;
+
+    vehicle.info = vehicle_info;
+    vehicle.last_update_ms = AP_HAL::millis();  // update time
+    
+    set_vehicle(index, vehicle);
+
+    return true;
+}
+
+
 void AP_ADSB::send_adsb_vehicle(const mavlink_channel_t chan)
 {
-    if (!check_startup() || in_state.vehicle_count == 0) {
+    if (!check_startup()) {
+
+        gcs().send_text(MAV_SEVERITY_INFO, "ADSB Startup Failed");
+        return;
+    }
+    if (  in_state.vehicle_count == 0){
+        //gcs().send_text(MAV_SEVERITY_INFO, "No adsb vehicles");
         return;
     }
 

@@ -1000,6 +1000,20 @@ function Location_ud:get_alt_frame() end
 ---@return boolean
 function Location_ud:change_alt_frame(desired_frame) end
 
+
+-- desc
+---@class adsb
+adsb = {}
+
+-- desc 
+--@param index number
+--@param ICAO_address number
+--@param lat number
+--@param lon number
+--@return boolean
+function adsb:set_vehicle_now(index, ICAO_address, lat,lon) end
+
+
 -- desc
 ---@param loc Location_ud
 ---@return Vector2f_ud

@@ -135,6 +135,11 @@ const AP_Scheduler::Task Rover::scheduler_tasks[] = {
 #if HAL_BUTTON_ENABLED
     SCHED_TASK_CLASS(AP_Button,           &rover.button,           update,          5,  200, 117),
 #endif
+
+#if HAL_ADSB_ENABLED
+    SCHED_TASK_CLASS(AP_ADSB,             &rover.adsb,             update,          10, 20, 138),
+#endif
+
 #if STATS_ENABLED == ENABLED
     SCHED_TASK(stats_update,            1,    200, 120),
 #endif
