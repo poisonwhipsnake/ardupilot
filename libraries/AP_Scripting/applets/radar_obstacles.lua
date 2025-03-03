@@ -10,6 +10,14 @@ if not driver1 and not driver2 then
    return
 end
 
+local PARAM_TABLE_KEY = 72
+assert(param:add_table(PARAM_TABLE_KEY, "RAD_", 30), 'could not add param table')
+assert(param:add_param(PARAM_TABLE_KEY, 1,  'RCS_MIN', 100), 'could not add param1')
+
+RCS_MIN = Parameter()
+RCS_MIN:init('RAD_RCS_MIN')
+
+
 -- Only accept DroneCAN node status msg on second driver
 -- node status is message ID 341
 -- Message ID is 16 bits left shifted by 8 in the CAN frame ID.
@@ -59,22 +67,24 @@ function interpret_frame(frame)
         -- Convert to angle in degrees
         local yaw = math.deg(math.atan(x, y))  
 
+        if (rcs > RCS_MIN:get()) then
 
 
-        local origin = ahrs:get_origin()
-        local obstacle_loc = ahrs:get_position()
+            local origin = ahrs:get_origin()
+            local obstacle_loc = ahrs:get_position()
 
-        if obstacle_loc ~= nil then
-            obstacle_loc:offset_bearing(yaw + math.deg(ahrs:get_yaw()), distance)
+            if obstacle_loc ~= nil then
+                obstacle_loc:offset_bearing(yaw + math.deg(ahrs:get_yaw()), distance)
 
-            adsb:set_vehicle_now(current_object_index,current_object_index,obstacle_loc:lat(),obstacle_loc:lng())
+                adsb:set_vehicle_now(current_object_index,current_object_index,obstacle_loc:lat(),obstacle_loc:lng())
 
+            end
+
+            -- Convert to angle in degrees
+            local yaw = math.deg(math.atan(x, y))  -- Use atan2 for correct angle calculation
+
+            gcs:send_text(0, string.format("Obj %d: x=%.1fm, y=%.1fm, dp=%i, s=%i, rcs= %i", current_object_index, x, y, dynamic_property, sector, rcs))
         end
-
-        -- Convert to angle in degrees
-        local yaw = math.deg(math.atan(x, y))  -- Use atan2 for correct angle calculation
-
-        gcs:send_text(0, string.format("Obj %d: x=%.1fm, y=%.1fm, dp=%i, s=%i, rcs= %i", current_object_index, x, y, dynamic_property, sector, rcs))
     else
         gcs:send_text(0,string.format("CAN[%x] msg from " .. tostring(id) .. ": %X, %i, %i, %i, %i, %i, %i, %i", 10, frame:data(0), frame:data(1), frame:data(2), frame:data(3), frame:data(4), frame:data(5), frame:data(6), frame:data(7)))
     end
