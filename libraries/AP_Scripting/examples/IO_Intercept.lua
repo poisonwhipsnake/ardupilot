@@ -3,6 +3,9 @@
 local serial_port = 1  -- Choose the correct serial port (e.g., SERIAL1)
 local baud_rate = 115200  -- Must match ESP32 baud rate
 local start_byte = 0xAA  -- Start byte for packet format
+local time = 0  -- Time variable for sine wave generation
+local update_rate = 0.02  -- 50Hz update interval (20ms per update)
+local digital_state = 0  -- Initial digital state
 
 -- Manual bitwise operations for Lua 5.4 (if 'bit' or 'bit32' is unavailable)
 function bxor(a, b)
@@ -36,7 +39,7 @@ end
 
 function calculate_checksum(data)
     local checksum = 0
-    for i = 1, #data - 1 do  -- Exclude checksum byte
+    for i = 1, #data do  -- Compute checksum over all bytes except itself
         checksum = bxor(checksum, data[i])
     end
     return checksum
@@ -48,29 +51,38 @@ function send_packet(digital_state, analog_value)
     packet[2] = digital_state
     packet[3] = rshift(analog_value, 8)  -- High byte of 12-bit analog value
     packet[4] = band(analog_value, 0xFF) -- Low byte of 12-bit analog value
-    packet[5] = calculate_checksum(packet)  -- Compute checksum before adding it
+    
+    -- Compute checksum before adding to packet
+    local checksum = calculate_checksum({packet[1], packet[2], packet[3], packet[4]})
+    packet[5] = checksum  
     
     -- Send each byte individually as a number
     for i = 1, #packet do
         serial:write(packet[i])
     end
     
-    gcs:send_text(0, string.format("Sent packet: %02X %02X %02X %02X %02X", 
-        packet[1], packet[2], packet[3], packet[4], packet[5]))
+    gcs:send_text(0, string.format("Sent packet: %02X %02X %02X %02X %02X (Checksum: %02X)", 
+        packet[1], packet[2], packet[3], packet[4], packet[5], packet[5]))
 end
 
 function update()
-    local digital_state = 5  -- Decimal equivalent of 0b00000101 (D27 and D12 HIGH)
-    local analog_value = 2048  -- Example: 50% of 12-bit range (0-4095)
+    -- Increment digital state and wrap around at 8
+    digital_state = (digital_state + 1) % 8
+    
+    -- Generate a 1Hz sine wave for analog output (scaled to 12-bit 0-4095)
+    local sine_wave = math.sin(2 * math.pi * time)  -- Sine wave from -1 to 1
+    local analog_value = math.floor((sine_wave * 0.5 + 0.5) * 4095)  -- Scale to 0-4095
+    time = time + update_rate  -- Increment time by update rate (20ms per cycle)
+    
     send_packet(digital_state, analog_value)
-    return update, 1000  -- Repeat every second
+    return update, 20  -- Repeat every 20ms (50Hz)
 end
 
 serial = serial:find_serial(serial_port)
 if serial then
     serial:begin(baud_rate)
     gcs:send_text(0, "ArduPilot Lua Serial TX Started")
-    return update, 1000  -- Start sending packets every second
+    return update, 20  -- Start sending packets at 50Hz
 else
     gcs:send_text(0, "Failed to open serial port")
 end
