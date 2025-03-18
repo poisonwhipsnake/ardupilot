@@ -95,7 +95,7 @@ function send_pos_command(steering_demand)
     send_bytes(cmd)
 
 
-    gcs:send_text(0, "Sent Speed: " .. pos)
+    -- gcs:send_text(0, "Sent Speed: " .. pos)
 end
 
 function update()
