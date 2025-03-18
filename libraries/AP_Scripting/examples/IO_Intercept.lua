@@ -5,7 +5,8 @@ local baud_rate = 115200  -- Must match ESP32 baud rate
 local start_byte = 0xAA  -- Start byte for packet format
 local time = 0  -- Time variable for sine wave generation
 local update_rate = 0.02  -- 50Hz update interval (20ms per update)
-local digital_state = 0  -- Initial digital state
+local digital_state = 1  -- Initial digital state
+local counter = 1
 
 -- Manual bitwise operations for Lua 5.4 (if 'bit' or 'bit32' is unavailable)
 function bxor(a, b)
@@ -67,7 +68,35 @@ end
 
 function update()
     -- Increment digital state and wrap around at 8
-    digital_state = (digital_state + 1) % 8
+    
+    counter = counter + 1  -- Increment every 20ms
+
+    if counter >= 50 then  -- Every 1 second (50 × 20ms = 1000ms)
+        counter = 0  -- Reset counter
+        
+        -- Update digital_state every second
+        if digital_state == 1 then
+            digital_state = 2
+        elseif digital_state == 2 then
+            digital_state = 4
+        elseif digital_state == 4 then
+            digital_state = 8
+        else
+            digital_state = 1
+        end
+
+        -- Debugging messages for each state
+        if digital_state == 1 then
+            gcs:send_text(0, "Park")
+        elseif digital_state == 2 then
+            gcs:send_text(0, "Neutral")
+        elseif digital_state == 4 then
+            gcs:send_text(0, "Forward")
+        elseif digital_state == 8 then
+            gcs:send_text(0, "Reverse")
+        end
+    end
+
     
     -- Generate a 1Hz sine wave for analog output (scaled to 12-bit 0-4095)
     local sine_wave = math.sin(2 * math.pi * time)  -- Sine wave from -1 to 1
