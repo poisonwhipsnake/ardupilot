@@ -2,11 +2,46 @@
 
 local serial_port = 1  -- Choose the correct serial port (e.g., SERIAL1)
 local baud_rate = 115200  -- Must match ESP32 baud rate
+local poll_time = 20
 local start_byte = 0xAA  -- Start byte for packet format
-local time = 0  -- Time variable for sine wave generation
-local update_rate = 0.02  -- 50Hz update interval (20ms per update)
-local digital_state = 1  -- Initial digital state
-local counter = 1
+local CONTROL_OUTPUT_THROTTLE = 3
+
+local PARAM_TABLE_KEY = 200
+
+assert(param:add_table(PARAM_TABLE_KEY, "IO_", 7), 'could not add param table')
+assert(param:add_param(PARAM_TABLE_KEY, 1, 'CLUTCH_T', 3000), 'could not add param1')
+assert(param:add_param(PARAM_TABLE_KEY, 2, 'STOP_SPEED', 0.1), 'could not add param2')
+assert(param:add_param(PARAM_TABLE_KEY, 3, 'STOP_TIME', 1000), 'could not add param3')
+assert(param:add_param(PARAM_TABLE_KEY, 4, 'MIN_THR', 0.1), 'could not add param4')
+assert(param:add_param(PARAM_TABLE_KEY, 6, 'CLUTCH_WAIT', 1000), 'could not add param5')
+assert(param:add_param(PARAM_TABLE_KEY, 7, 'CLUTCH_MAX', 3500), 'could not add param6')
+
+local Clutch_Travel_Time = Parameter("IO_CLUTCH_T")
+local Stop_Speed = Parameter("IO_STOP_SPEED")
+local Stop_Time = Parameter("IO_STOP_TIME")
+local Min_Throttle = Parameter("IO_MIN_THR")
+local Clutch_Wait_Time = Parameter("IO_CLUTCH_WAIT")
+local Clutch_Max_PWM = Parameter("IO_CLUTCH_MAX")
+
+
+-- Moving Status - 0 = Stopped, 1 = Forward, -1 = Reverse
+local moving = 0
+-- Clutch Status - 0 = Clutch Out + Neutral/Park, 1 = Clutch in + Neutral/Park, 2 = Clutch In +Forward/Reverse, 3 = Clutch Out + Forward/Reverse
+local clutch_status = 0
+
+-- loops since clutch started moving
+local clutch_counter = 0
+
+local stopped_counter = 0
+
+-- Forward, Neutral, Reverse, Park State Machine, 1 = Park, 2 = Neutral, 4 = Forward, 8 = Reverse
+local FNRP_State = 1
+
+local clutch_output = Clutch_Max_PWM:get()
+
+local previous_FNRP_state = FNRP_State
+
+
 
 -- Manual bitwise operations for Lua 5.4 (if 'bit' or 'bit32' is unavailable)
 function bxor(a, b)
@@ -62,49 +97,111 @@ function send_packet(digital_state, analog_value)
         serial:write(packet[i])
     end
     
-    gcs:send_text(0, string.format("Sent packet: %02X %02X %02X %02X %02X (Checksum: %02X)", 
-        packet[1], packet[2], packet[3], packet[4], packet[5], packet[5]))
+    --gcs:send_text(0, string.format("Sent packet: %02X %02X %02X %02X %02X (Checksum: %02X)", 
+    --   packet[1], packet[2], packet[3], packet[4], packet[5], packet[5]))
 end
 
 function update()
     -- Increment digital state and wrap around at 8
     
-    counter = counter + 1  -- Increment every 20ms
+    
+    --local throttleDemand = vehicle:get_control_output(CONTROL_OUTPUT_THROTTLE)
+    local throttleDemand = (rc:get_pwm(3)-1500)/400
+    --gcs:send_text(0, tostring(throttleDemand))
+    local ground_speed = ahrs:groundspeed_vector():length()
+    --gcs:send_text(0, tostring(ground_speed))
+    local armed = arming:is_armed()
+    local go = false
+    local FNRP_Target_State = 2
 
-    if counter >= 50 then  -- Every 1 second (50 × 20ms = 1000ms)
-        counter = 0  -- Reset counter
-        
-        -- Update digital_state every second
-        if digital_state == 1 then
-            digital_state = 2
-        elseif digital_state == 2 then
-            digital_state = 4
-        elseif digital_state == 4 then
-            digital_state = 8
+    if not armed then
+        moving = 0
+        clutch_status = 0
+        clutch_counter = 0
+        FNRP_State = 1
+        clutch_output = Clutch_Max_PWM:get()
+
+    else 
+        if throttleDemand > Min_Throttle:get() and moving > -1 then
+            moving = 1
+            go = true
+            FNRP_Target_State = 4
+        elseif throttleDemand < -Min_Throttle:get() and moving < 1 then
+            moving = -1
+            go = true
+            FNRP_Target_State = 8
         else
-            digital_state = 1
+            FNRP_State = 2
+            clutch_output = 0
+            clutch_counter = 0
+            clutch_status = 0
         end
 
-        -- Debugging messages for each state
-        if digital_state == 1 then
+        if go then
+            stopped_counter = 0
+            if clutch_status == 0 then
+                clutch_status = 1
+                clutch_counter = 0
+                FNRP_State = 2
+                clutch_output = 0
+            
+            elseif clutch_status == 1 then
+                if clutch_counter < (Clutch_Wait_Time:get()/poll_time) then
+                    clutch_counter = clutch_counter + 1
+                    FNRP_State = 2
+                    clutch_output = 0
+                else
+                    FNRP_State = FNRP_Target_State
+                    clutch_output = 0
+                    clutch_status = 2
+                    clutch_counter = 0
+                end
+            elseif clutch_status == 2 then
+                if clutch_counter < (Clutch_Travel_Time:get()/poll_time) then 
+                    clutch_counter = clutch_counter + 1
+                    clutch_output =  math.floor((Clutch_Max_PWM:get()*clutch_counter*poll_time)/Clutch_Travel_Time:get())
+                    FNRP_State = FNRP_Target_State
+                else
+                    clutch_status = 3
+                    clutch_output = Clutch_Max_PWM:get()
+                    FNRP_State = FNRP_Target_State
+                end
+            else
+                clutch_output = Clutch_Max_PWM:get()
+                FNRP_State = FNRP_Target_State
+            end
+        else
+            if (ground_speed<Stop_Speed:get()) and moving ~= 0  then
+                stopped_counter = stopped_counter + 1
+            else
+                stopped_counter = 0
+            end
+        
+            if stopped_counter > (Stop_Time:get()/poll_time) and moving ~= 0 then
+                moving = 0
+                gcs:send_text(0, "Lua Stop Detected")
+            end  
+        end
+    
+    end
+
+    if FNRP_State ~= previous_FNRP_state then
+        if FNRP_State == 1 then
             gcs:send_text(0, "Park")
-        elseif digital_state == 2 then
+        elseif FNRP_State == 2 then
             gcs:send_text(0, "Neutral")
-        elseif digital_state == 4 then
+        elseif FNRP_State == 4 then
             gcs:send_text(0, "Forward")
-        elseif digital_state == 8 then
+        elseif FNRP_State == 8 then
             gcs:send_text(0, "Reverse")
         end
     end
 
+    previous_FNRP_state = FNRP_State
     
-    -- Generate a 1Hz sine wave for analog output (scaled to 12-bit 0-4095)
-    local sine_wave = math.sin(2 * math.pi * time)  -- Sine wave from -1 to 1
-    local analog_value = math.floor((sine_wave * 0.5 + 0.5) * 4095)  -- Scale to 0-4095
-    time = time + update_rate  -- Increment time by update rate (20ms per cycle)
-    
-    send_packet(digital_state, analog_value)
-    return update, 20  -- Repeat every 20ms (50Hz)
+    send_packet(FNRP_State, clutch_output)
+
+    return update, poll_time  -- Repeat every 20ms (50Hz)
 end
 
 serial = serial:find_serial(serial_port)
