@@ -15,6 +15,7 @@ assert(param:add_param(PARAM_TABLE_KEY, 3, 'STOP_TIME', 1000), 'could not add pa
 assert(param:add_param(PARAM_TABLE_KEY, 4, 'MIN_THR', 0.1), 'could not add param4')
 assert(param:add_param(PARAM_TABLE_KEY, 6, 'CLUTCH_WAIT', 1000), 'could not add param5')
 assert(param:add_param(PARAM_TABLE_KEY, 7, 'CLUTCH_MAX', 3500), 'could not add param6')
+--assert(param:add_param(PARAM_TABLE_KEY, 8, 'CHANGE_TIME', 500), 'could not add param7')
 
 local Clutch_Travel_Time = Parameter("IO_CLUTCH_T")
 local Stop_Speed = Parameter("IO_STOP_SPEED")
@@ -22,6 +23,7 @@ local Stop_Time = Parameter("IO_STOP_TIME")
 local Min_Throttle = Parameter("IO_MIN_THR")
 local Clutch_Wait_Time = Parameter("IO_CLUTCH_WAIT")
 local Clutch_Max_PWM = Parameter("IO_CLUTCH_MAX")
+local Change_Time = 500 --Parameter("IO_CHANGE_TIME")
 
 
 -- Moving Status - 0 = Stopped, 1 = Forward, -1 = Reverse
@@ -33,6 +35,8 @@ local clutch_status = 0
 local clutch_counter = 0
 
 local stopped_counter = 0
+
+local change_counter = 0
 
 -- Forward, Neutral, Reverse, Park State Machine, 1 = Park, 2 = Neutral, 4 = Forward, 8 = Reverse
 local FNRP_State = 1
@@ -186,6 +190,8 @@ function update()
     end
 
     if FNRP_State ~= previous_FNRP_state then
+
+        change_counter = 0;
         if FNRP_State == 1 then
             gcs:send_text(0, "Park")
         elseif FNRP_State == 2 then
@@ -197,9 +203,16 @@ function update()
         end
     end
 
+    local FNRP_State_Override = FNRP_State
+
+    if (change_counter < (Change_Time /poll_time)) then
+        change_counter = change_counter + 1
+        FNRP_State_Override = 0;
+    end
+
     previous_FNRP_state = FNRP_State
     
-    send_packet(FNRP_State, clutch_output)
+    send_packet(FNRP_State_Override, clutch_output)
 
     return update, poll_time  -- Repeat every 20ms (50Hz)
 end
