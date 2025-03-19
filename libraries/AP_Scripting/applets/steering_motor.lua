@@ -59,7 +59,7 @@ function disable_motor()
     local cmd = {0xE0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
     send_bytes(cmd)
     motor_enabled = false
-    gcs:send_text(0, "Motor Disabled")
+    --gcs:send_text(0, "Motor Disabled")
 end
 
 function int_to_bytes(value)
@@ -84,7 +84,7 @@ function send_pos_command(steering_demand)
     end
 
     -- Convert throttle (-1 to 1) to motor speed (-10000 to 10000)
-    local pos = math.floor(steering_demand * max_speed)
+    local pos = math.floor(-steering_demand * gain:get())
 
     -- Convert speed to 4-byte representation
     local speed_bytes = int_to_bytes(pos)
@@ -100,8 +100,18 @@ end
 
 function update()
     
-    local steering_demand = vehicle:get_control_output(CONTROL_OUTPUT_YAW)
-    send_pos_command(steering_demand)
+
+    local armed = arming:is_armed()
+
+    if armed then
+        local steering_demand = vehicle:get_control_output(CONTROL_OUTPUT_YAW)
+        send_pos_command(steering_demand)
+    else
+        
+        disable_motor()
+
+    end
+    
     return update, 20 -- Run this function every 100ms
 end
 
