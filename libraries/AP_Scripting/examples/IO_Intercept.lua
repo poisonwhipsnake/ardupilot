@@ -109,8 +109,8 @@ function update()
     -- Increment digital state and wrap around at 8
     
     
-    --local throttleDemand = vehicle:get_control_output(CONTROL_OUTPUT_THROTTLE)
-    local throttleDemand = (rc:get_pwm(3)-1500)/400
+    local throttleDemand = vehicle:get_control_output(CONTROL_OUTPUT_THROTTLE)
+    --local throttleDemand = (rc:get_pwm(3)-1500)/400
     --gcs:send_text(0, tostring(throttleDemand))
     local ground_speed = ahrs:groundspeed_vector():length()
     --gcs:send_text(0, tostring(ground_speed))
