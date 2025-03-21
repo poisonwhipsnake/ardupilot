@@ -14,7 +14,7 @@ public:
     AR_WPNav(AR_AttitudeControl& atc, AR_PosControl &pos_control);
 
     // initialise waypoint controller.  speed_max should be set to the maximum speed in m/s (or left at zero to use the default speed)
-    void init(float speed_max = 0);
+    virtual void init(float speed_max = 0);
 
     // update navigation
     virtual void update(float dt);
@@ -35,13 +35,15 @@ public:
     // get navigation outputs for speed (in m/s) and turn rate (in rad/sec)
     float get_speed() const { return _desired_speed_limited; }
     float get_turn_rate_rads() const { return _desired_turn_rate_rads; }
+    float get_steering_output() const { return _desired_steering_output;}
 
     // get desired lateral acceleration (for reporting purposes only because will be zero during pivot turns)
     float get_lat_accel() const { return _desired_lat_accel; }
 
     // set desired location and (optionally) next_destination
     // next_destination should be provided if known to allow smooth cornering
-    virtual bool set_desired_location(const Location &destination, Location next_destination = Location()) WARN_IF_UNUSED;
+    virtual bool set_desired_location(const Location& destination, Location next_destination= Location()) WARN_IF_UNUSED;
+    virtual bool set_waypoint_speed(float wp_speed) WARN_IF_UNUSED;
 
     // set desired location to a reasonable stopping point, return true on success
     bool set_desired_location_to_stopping_location()  WARN_IF_UNUSED;
@@ -184,6 +186,7 @@ protected:
     // main outputs from navigation library
     float _desired_speed_limited;   // desired speed (above) but accel/decel limited
     float _desired_turn_rate_rads;  // desired turn-rate in rad/sec (negative is counter clockwise, positive is clockwise)
+    float _desired_steering_output;
     float _desired_lat_accel;       // desired lateral acceleration (for reporting only)
     float _desired_heading_cd;      // desired heading (back towards line between origin and destination)
     float _wp_bearing_cd;           // heading to waypoint in centi-degrees

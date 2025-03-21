@@ -321,6 +321,11 @@ bool AR_WPNav::set_desired_location_NED(const Vector3f& destination)
     return set_desired_location(destination_ned);
 }
 
+bool AR_WPNav::set_waypoint_speed(float speed)
+{
+    return true;
+}
+
 bool AR_WPNav::set_desired_location_NED(const Vector3f &destination, const Vector3f &next_destination)
 {
     // initialise destination to ekf origin

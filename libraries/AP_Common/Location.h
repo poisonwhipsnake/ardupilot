@@ -99,6 +99,8 @@ public:
 
     void zero(void);
 
+    void clone( const struct Location &clone) ;
+
     // return the bearing in radians, from 0 to 2*Pi
     ftype get_bearing(const Location &loc2) const;
 
@@ -156,6 +158,20 @@ public:
     
     // get lon1-lon2, wrapping at -180e7 to 180e7
     static int32_t diff_longitude(int32_t lon1, int32_t lon2);
+
+    static void calc_turn_centre(
+        const struct Location &previous_wp,
+        const struct Location &current_loc,
+        const struct Location &turn_WP,
+        const struct Location &next_WP,
+        float ground_turn_radius,
+        AP_Float ground_turn_early_initiation,
+        Location &out_turn_centre,
+        Vector3f &out_turn_vector,
+        int8_t &out_turn_direction,
+        float &out_groundspeed_heading_1,
+        float &out_groundspeed_heading_2,
+        Vector2f &out_turn_start_dist);
 
 private:
 
