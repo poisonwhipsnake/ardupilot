@@ -23,9 +23,9 @@ assert(param:add_param(PARAM_TABLE_KEY, 2, 'TEST', 5.7), 'could not add param2')
 local gain = Parameter("LUA_STR_GAIN")
 local param2 = Parameter("LUA_STR_TEST")
 
-
-
-
+local encoder_query_cmd = {0xED, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}  -- Query encoder position
+local last_position_request_time = 0  -- Timestamp for requesting position
+local last_position = nil  -- Store last known position
 
 --------------------------------------------------------------------------------------------------
 -- ArduPilot Lua Script for controlling RS232 Motor
@@ -36,12 +36,17 @@ local baud_rate = 115200
 local motor_enabled = false
 local max_speed = 10000 -- Max speed in the manual
 
+-- Buffer for handling serial data
+local serial_buffer = {}  
+
 function setup_serial()
     -- Configure the serial port
     serial = serial:find_serial(serial_port)
     if serial then
         serial:begin(baud_rate)
-        serial:set_flow_control(0)
+  
+        serial:set_flow_control(0)  -- Disable hardware flow control
+
         gcs:send_text(0, "Serial port initialized")
     else
         gcs:send_text(0, "Serial port not found")
@@ -59,7 +64,6 @@ function disable_motor()
     local cmd = {0xE0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
     send_bytes(cmd)
     motor_enabled = false
-    --gcs:send_text(0, "Motor Disabled")
 end
 
 function int_to_bytes(value)
@@ -83,40 +87,87 @@ function send_pos_command(steering_demand)
         enable_motor()
     end
 
-    -- Convert throttle (-1 to 1) to motor speed (-10000 to 10000)
+    -- Convert steering (-1 to 1) to motor position range
     local pos = math.floor(-steering_demand * gain:get())
 
-    -- Convert speed to 4-byte representation
+    -- Convert to 4-byte representation
     local speed_bytes = int_to_bytes(pos)
 
-    -- Construct the full command
     local cmd = {0xE0, 0x01, 0x00, 0x00, speed_bytes[1], speed_bytes[2], speed_bytes[3], speed_bytes[4]}
-
     send_bytes(cmd)
-
-
-    -- gcs:send_text(0, "Sent Speed: " .. pos)
 end
 
-function update()
-    
+function request_encoder_position()
+    send_bytes(encoder_query_cmd)
+end
 
+function check_serial_buffer()
+    local max_bytes_per_cycle = 8  -- Limit processing to avoid timeouts
+    local processed_bytes = 0
+
+    while serial:available() > 0 and processed_bytes < max_bytes_per_cycle do
+        local byte = serial:read()  -- Read one byte at a time
+        table.insert(serial_buffer, byte)
+        processed_bytes = processed_bytes + 1
+
+        -- Keep buffer size limited to 8 bytes (only store latest message)
+        if #serial_buffer > 8 then
+            table.remove(serial_buffer, 1)  -- Remove oldest byte
+        end
+
+        -- Process if we have a full 8-byte message
+        if #serial_buffer == 8 then
+            -- Print raw buffer content for debugging
+            
+            if serial_buffer[1] ~= 0x00 then
+                local buffer_str = "Serial Buffer: "
+                for i = 1, #serial_buffer do
+                    buffer_str = buffer_str .. string.format("%02X ", serial_buffer[i])
+                end
+                --gcs:send_text(0, buffer_str)  -- Send raw buffer contents to GCS
+
+                -- Check if it's an encoder position message
+                if serial_buffer[1] == 0xED and serial_buffer[2] == 0x08 then
+                    -- Extract the encoder position
+                    local position = (serial_buffer[5] << 24) | (serial_buffer[6] << 16) |
+                                    (serial_buffer[7] << 8) | serial_buffer[8]
+                    last_position = position
+                    gcs:send_text(0, "Current Encoder Position: " .. position)
+                end
+                 -- Clear buffer after processing message
+                serial_buffer = {}
+            end
+            
+           
+        end
+    end
+end
+
+
+function update()
     local armed = arming:is_armed()
 
     if armed then
-        local steering_demand = vehicle:get_control_output(CONTROL_OUTPUT_YAW)
+        local steering_demand = vehicle:get_control_output(4)
         send_pos_command(steering_demand)
     else
-        
         disable_motor()
+    end
 
+    -- Request encoder position every second
+    local now = millis()
+    if (now - last_position_request_time) > 1000 then
+        last_position_request_time = now
+        --request_encoder_position()
     end
     
-    return update, 20 -- Run this function every 100ms
+    -- Check if we received an encoder response (or discard other messages)
+    check_serial_buffer()
+
+    return update, 20 -- Run every 100ms
 end
 
 setup_serial()
-gcs:send_text(0, "Steering Motor Lua Running ")
+gcs:send_text(0, "Steering Motor Lua Running")
 
 return update()
-
