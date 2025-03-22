@@ -1,7 +1,23 @@
 #pragma once
 
 #include <AP_Common/AP_Common.h>
+#include <AP_Math/AP_Math.h>
+#include <AP_Logger/AP_Logger.h>
 #include "AR_WPNav.h"
+
+// log structure definitions
+#define LOG_CLOTHOID_MSG 230
+struct PACKED log_Clothoid {
+    LOG_PACKET_HEADER;
+    uint64_t time_us;
+    uint8_t state;
+    float total_turn_angle;
+    float entry_angle;
+    float exit_angle;
+    float target_curvature;
+    float clothoid_rate;
+    float turn_radius;
+};
 
 /*
   This class implements Clothoid curve navigation for Rover
@@ -30,14 +46,23 @@ public:
     // set desired location and (optionally) next_destination
     bool set_desired_location(const Location &destination, Location next_destination = Location()) override WARN_IF_UNUSED;
 
-    // true if vehicle has reached desired location
+    // true if vehicle has reached destination
     bool reached_destination() const override;
 
     // get target curvature in 1/meters
     float get_target_curvature() const { return _target_curvature; }
 
+    // get clothoid navigation target curvature
+    float get_clothoid_target_curvature() const { return _target_curvature; }
+
+    // write clothoid data to log
+    void Write_Clothoid();
+
     // parameter var table
     static const struct AP_Param::GroupInfo var_info[];
+
+    // log structure
+    static const struct LogStructure log_structure[];
 
     // calculate clothoid parameters for the current path segment
     void calculate_clothoid_parameters(const Location& prev_wp, const Location& curr_wp, const Location& next_wp);

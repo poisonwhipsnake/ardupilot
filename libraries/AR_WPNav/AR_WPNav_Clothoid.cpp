@@ -110,10 +110,6 @@ void AR_WPNav_Clothoid::update(float dt)
     float current_heading = AP::ahrs().get_yaw();
     Vector2f heading_vec(cosf(current_heading), sinf(current_heading));
 
-    // log current state for debugging
-    log_clothoid_debug();
-    log_state_info(current_loc, current_heading);
-
     // determine which segment we're in and calculate desired speed and curvature
     float desired_speed = _reversed ? -_speed_max : _speed_max;
     float target_curvature = 0;
@@ -271,6 +267,8 @@ void AR_WPNav_Clothoid::update(float dt)
     _desired_lat_accel = _target_curvature * speed * speed;
 }
 
+
+
 // set desired location
 bool AR_WPNav_Clothoid::set_desired_location(const Location &destination, Location next_destination)
 {
@@ -301,14 +299,10 @@ void AR_WPNav_Clothoid::calculate_clothoid_parameters(const Location& prev_wp, c
     // calculate maximum curvature (at end of entry spiral/start of constant turn)
     float max_curvature = 1.0f / _turn_radius;
 
-    // calculate clothoid length based on rate of curvature change
-    _clothoid_entry_length = sqrtf(max_curvature / _clothoid_rate);
-    _clothoid_exit_length = _clothoid_entry_length;
-
     // calculate maximum angle change possible in a single clothoid
     // from clothoid properties: heading = 0.5 * rate * s^2
     // at max length: heading = 0.5 * rate * (sqrt(max_curv/rate))^2 = 0.5 * max_curv
-    float max_clothoid_angle = 0.5f * max_curvature;
+    float max_clothoid_angle = 0.5f * max_curvature*max_curvature/_clothoid_rate;
 
     // determine if we need a constant radius turn
     if (fabsf(_total_turn_angle) > 2.0f * max_clothoid_angle) {
@@ -319,11 +313,12 @@ void AR_WPNav_Clothoid::calculate_clothoid_parameters(const Location& prev_wp, c
         // small turn - split angle between entry and exit spirals
         _entry_angle = _total_turn_angle * 0.5f;
         _exit_angle = _total_turn_angle * 0.5f;
+        max_clothoid_angle = _total_turn_angle * 0.5f;
     }
 
     // calculate clothoid lengths
-    _clothoid_entry_length = sqrtf(2.0f * fabsf(_entry_angle) / _clothoid_rate);
-    _clothoid_exit_length = sqrtf(2.0f * fabsf(_exit_angle) / _clothoid_rate);
+    //_clothoid_entry_length = sqrtf(2.0f * fabsf(_entry_angle) / _clothoid_rate);
+    //_clothoid_exit_length = sqrtf(2.0f * fabsf(_exit_angle) / _clothoid_rate);
 
     // calculate straight segment length
     _straight_length = curr_wp.get_distance(next_wp);
@@ -357,8 +352,6 @@ void AR_WPNav_Clothoid::calculate_clothoid_parameters(const Location& prev_wp, c
     float const_turn_y = const_turn_radius * (-cosf(_constant_turn_heading + const_turn_angle) + cosf(_constant_turn_heading));
     _exit_spiral_start_ned = _constant_turn_start_ned + Vector2f(const_turn_x, const_turn_y);
 
-    // log path points when starting a new turn
-    log_path_points();
 }
 
 // calculate position on clothoid given heading change from start
@@ -447,121 +440,3 @@ void AR_WPNav_Clothoid::update_clothoid_distance_and_bearing()
     _distance_to_destination = current_loc.get_distance(_destination);
 }
 
-// log debug information about clothoid navigation
-void AR_WPNav_Clothoid::log_clothoid_debug() const
-{
-    // @LoggerMessage: CLTH
-    // @Description: Clothoid Navigation Debug
-    // @Field: TimeUS: Time since system startup
-    // @Field: State: Navigation state (0:Straight, 1:Entry, 2:Turn, 3:Exit)
-    // @Field: TargCrv: Target path curvature
-    // @Field: TotAngle: Total turn angle
-    // @Field: EntAngle: Entry spiral angle
-    // @Field: ExtAngle: Exit spiral angle
-    // @Field: TurnRad: Turn radius
-    AP::logger().Write(
-        "CLTH",
-        "TimeUS,State,TargCrv,TotAngle,EntAngle,ExtAngle,TurnRad",
-        "s#1rrrrm",
-        "F000000",
-        "QBfffff",
-        AP_HAL::micros64(),
-        (uint8_t)_clothoid_state,
-        (double)_target_curvature,
-        (double)degrees(_total_turn_angle),
-        (double)degrees(_entry_angle),
-        (double)degrees(_exit_angle),
-        (double)_turn_radius
-    );
-}
-
-// log current state information
-void AR_WPNav_Clothoid::log_state_info(const Location& current_loc, float current_heading) const
-{
-    // get current position in NED
-    Vector3f current_pos;
-    if (!current_loc.get_vector_from_origin_NEU(current_pos)) {
-        return;
-    }
-
-    // @LoggerMessage: CLTS
-    // @Description: Clothoid State Information
-    // @Field: TimeUS: Time since system startup
-    // @Field: PosX: Current position X
-    // @Field: PosY: Current position Y
-    // @Field: Hdg: Current heading
-    // @Field: IdealX: Ideal position X
-    // @Field: IdealY: Ideal position Y
-    // @Field: ErrX: Position error X
-    // @Field: ErrY: Position error Y
-    AP::logger().Write(
-        "CLTS",
-        "TimeUS,PosX,PosY,Hdg,IdealX,IdealY,ErrX,ErrY",
-        "smmmmmm",
-        "F000000",
-        "Qfffffff",
-        AP_HAL::micros64(),
-        (double)current_pos.x,
-        (double)current_pos.y,
-        (double)degrees(current_heading),
-        (double)0.0f,  // TODO: Add ideal position calculation based on state
-        (double)0.0f,
-        (double)0.0f,  // TODO: Add error vector calculation
-        (double)0.0f
-    );
-}
-
-// log key path points
-void AR_WPNav_Clothoid::log_path_points() const
-{
-    // @LoggerMessage: CLTP
-    // @Description: Clothoid Path Points
-    // @Field: TimeUS: Time since system startup
-    // @Field: Type: Point type (0:Entry, 1:Turn, 2:Exit, 3:Center)
-    // @Field: PosX: Point position X
-    // @Field: PosY: Point position Y
-    // @Field: Hdg: Heading at point
-    Vector3f pos;
-
-    // log entry spiral start
-    AP::logger().Write(
-        "CLTP",
-        "TimeUS,Type,PosX,PosY,Hdg",
-        "s#mmr",
-        "F0000",
-        "QBfff",
-        AP_HAL::micros64(),
-        0,
-        (double)_entry_spiral_start_ned.x,
-        (double)_entry_spiral_start_ned.y,
-        (double)degrees(_entry_spiral_heading)
-    );
-
-    // log constant turn start
-    AP::logger().Write(
-        "CLTP",
-        "TimeUS,Type,PosX,PosY,Hdg",
-        "s#mmr",
-        "F0000",
-        "QBfff",
-        AP_HAL::micros64(),
-        1,
-        (double)_constant_turn_start_ned.x,
-        (double)_constant_turn_start_ned.y,
-        (double)degrees(_constant_turn_heading)
-    );
-
-    // log exit spiral start
-    AP::logger().Write(
-        "CLTP",
-        "TimeUS,Type,PosX,PosY,Hdg",
-        "s#mmr",
-        "F0000",
-        "QBfff",
-        AP_HAL::micros64(),
-        2,
-        (double)_exit_spiral_start_ned.x,
-        (double)_exit_spiral_start_ned.y,
-        (double)degrees(_exit_spiral_heading)
-    );
-} 
