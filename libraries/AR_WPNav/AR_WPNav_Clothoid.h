@@ -55,8 +55,8 @@ public:
     // get clothoid navigation target curvature
     float get_clothoid_target_curvature() const { return _target_curvature; }
 
-    // write clothoid data to log
-    void Write_Clothoid();
+
+
 
     // parameter var table
     static const struct AP_Param::GroupInfo var_info[];
@@ -65,7 +65,7 @@ public:
     static const struct LogStructure log_structure[];
 
     // calculate clothoid parameters for the current path segment
-    void calculate_clothoid_parameters(const Location& prev_wp, const Location& curr_wp, const Location& next_wp);
+    void calculate_clothoid_parameters(const Location& prev_wp, const Location& curr_wp, const Location& next_wp, bool reset_state = true);
 
     // get current navigation state
     ClothoidState get_clothoid_state() const { return _clothoid_state; }
@@ -79,6 +79,8 @@ private:
     // calculate clothoid parameters for the current path segment
     void calculate_clothoid_parameters();
 
+    float calc_crosstrack_error_strait(const Location& current_loc) const;
+
     // update distance and bearing from vehicle's current position to destination
     void update_clothoid_distance_and_bearing();
 
@@ -88,22 +90,38 @@ private:
     // calculate heading and curvature at a given distance along clothoid
     void calc_clothoid_properties(float distance, float& heading, float& curvature) const;
 
+    
+
     // member variables
     ClothoidState _clothoid_state;    // current state of clothoid navigation
-    float _clothoid_entry_length;     // length of entry spiral in meters
-    float _clothoid_exit_length;      // length of exit spiral in meters
-    float _total_turn_angle;          // total angle change for the turn in radians
-    float _entry_angle;               // angle change for entry spiral in radians
-    float _exit_angle;                // angle change for exit spiral in radians
-    float _straight_length;           // length of straight segment in meters
-    float _entry_spiral_heading;     // heading at start of entry spiral
-    float _constant_turn_heading;    // heading at start of constant turn
-    float _exit_spiral_heading;      // heading at start of exit spiral
-    float _straight_heading;         // heading of straight segment
-    Vector2f _entry_spiral_start_ned;  // NED position of entry spiral start
-    Vector2f _constant_turn_start_ned; // NED position of constant turn start
-    Vector2f _exit_spiral_start_ned;   // NED position of exit spiral start
+    struct Clothoid_Turn_Geometry {
+        float entry_length;
+        float exit_length;
+        float total_turn_angle;
+        float entry_angle;
+        bool use_fixed_radius;
+        float exit_angle;
+        float straight_length;
+        float entry_spiral_heading;
+        float constant_turn_heading;
+        float exit_spiral_heading;
+        Vector2f entry_spiral_start_ned;
+        Vector2f constant_turn_start_ned;
+        Vector2f exit_spiral_start_ned;
+        float target_curvature;
+    } next_turn;
+
+    Clothoid_Turn_Geometry current_turn; // geometry of current turn
+  
+
     float _target_curvature;         // target path curvature in 1/meters (positive = turn right, negative = turn left)
+    float turn_start_distance;
+    float _current_track_heading;     // heading of current waypoint from previous waypoint
+
+
+    Location _prev_wp;                // previous waypoint
+    Location _curr_wp;                // current waypoint
+    Location _next_wp;                // next waypoint
 
     // parameters
     AP_Float _clothoid_rate;          // rate of change of curvature with distance
@@ -111,4 +129,5 @@ private:
     AP_Float _long_error_gain;        // gain for converting longitudinal position error into a corrective curvature
     AP_Float _look_ahead_dist;        // look ahead distance for straight segments
     AP_Float _turn_radius;            // minimum turn radius in meters
+    AP_Float _angle_gain;             // gain for converting heading error into a corrective curvature
 }; 

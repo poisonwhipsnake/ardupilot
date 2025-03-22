@@ -763,10 +763,11 @@ bool ModeAuto::do_nav_wp(const AP_Mission::Mission_Command& cmd, bool always_sto
 
     // calculate clothoid parameters using previous, current and next waypoints
     if (have_prev_nav_cmd) {
-        g2.wp_nav.calculate_clothoid_parameters(prev_nav_cmd.content.location, cmdloc, have_next_cmd ? next_cmdloc : cmdloc);
+        g2.wp_nav.calculate_clothoid_parameters(prev_nav_cmd.content.location, cmdloc, have_next_cmd ? next_cmdloc : cmdloc, true);
+
     } else {
         // no previous waypoint, use current location as previous
-        g2.wp_nav.calculate_clothoid_parameters(rover.current_loc, cmdloc, have_next_cmd ? next_cmdloc : cmdloc);
+        g2.wp_nav.calculate_clothoid_parameters(rover.current_loc, cmdloc, have_next_cmd ? next_cmdloc : cmdloc, false);
     }
 
     // set target location to destination
