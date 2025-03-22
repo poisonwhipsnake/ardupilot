@@ -298,12 +298,6 @@ void AR_WPNav_Clothoid::calculate_clothoid_parameters(const Location& prev_wp, c
     // calculate total turn angle
     _total_turn_angle = wrap_PI((next_wp.get_bearing_to(curr_wp) - prev_wp.get_bearing_to(curr_wp)) * 0.01f);
 
-    // calculate maximum angle change for clothoid spirals
-    float max_clothoid_angle = sqrtf(2.0f * M_PI * _turn_radius * _clothoid_rate);
-
-    // calculate total turn angle needed
-    _total_turn_angle = wrap_PI(next_bearing - prev_bearing);
-
     // calculate maximum curvature (at end of entry spiral/start of constant turn)
     float max_curvature = 1.0f / _turn_radius;
 
@@ -320,7 +314,7 @@ void AR_WPNav_Clothoid::calculate_clothoid_parameters(const Location& prev_wp, c
     if (fabsf(_total_turn_angle) > 2.0f * max_clothoid_angle) {
         // large turn - use entry spiral, constant radius and exit spiral
         _entry_angle = max_clothoid_angle;
-        _exit_angle = total_turn_angle - max_clothoid_angle;
+        _exit_angle = _total_turn_angle - max_clothoid_angle;
     } else {
         // small turn - split angle between entry and exit spirals
         _entry_angle = _total_turn_angle * 0.5f;
@@ -362,6 +356,9 @@ void AR_WPNav_Clothoid::calculate_clothoid_parameters(const Location& prev_wp, c
     float const_turn_x = const_turn_radius * (sinf(_constant_turn_heading + const_turn_angle) - sinf(_constant_turn_heading));
     float const_turn_y = const_turn_radius * (-cosf(_constant_turn_heading + const_turn_angle) + cosf(_constant_turn_heading));
     _exit_spiral_start_ned = _constant_turn_start_ned + Vector2f(const_turn_x, const_turn_y);
+
+    // log path points when starting a new turn
+    log_path_points();
 }
 
 // calculate position on clothoid given heading change from start
