@@ -319,6 +319,7 @@ private:
 
     bool verify_command(const AP_Mission::Mission_Command& cmd);
     void do_RTL(void);
+    bool do_nav_wp(const AP_Mission::Mission_Command& cmd);
     bool do_nav_wp(const AP_Mission::Mission_Command& cmd, bool always_stop_at_destination);
     void do_nav_guided_enable(const AP_Mission::Mission_Command& cmd);
     void do_nav_set_yaw_speed(const AP_Mission::Mission_Command& cmd);
@@ -375,6 +376,13 @@ private:
     // Delay the next navigation command
     uint32_t nav_delay_time_max_ms;  // used for delaying the navigation commands
     uint32_t nav_delay_time_start_ms;
+
+    // Next navigation leg bearing in centi-degrees
+    float next_navigation_leg_cd;
+
+    // Previous navigation command
+    AP_Mission::Mission_Command prev_nav_cmd;
+    bool have_prev_nav_cmd;
 
 #if AP_SCRIPTING_ENABLED
     // nav_script_time command variables
