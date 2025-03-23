@@ -108,7 +108,7 @@ private:
         bool use_fixed_radius;
         float fixed_rate_angle;
         float exit_angle;
-        float straight_length;
+        float clothoid_length;
 
         float entry_spiral_heading;
         float constant_turn_heading;
@@ -131,7 +131,7 @@ private:
     float _current_track_heading;     // heading of current waypoint from previous waypoint
 
     float distance_along_segment;
-    
+
     Location _prev_location;
 
 
@@ -142,8 +142,8 @@ private:
     // parameters
     AP_Float _clothoid_rate;          // rate of change of curvature with distance
     AP_Float _pos_error_gain;         // gain for converting lateral position error into a corrective curvature
-    AP_Float _long_error_gain;        // gain for converting longitudinal position error into a corrective curvature
-    AP_Float _look_ahead_dist;        // look ahead distance for straight segments
+    AP_Float _heading_gain;        // gain for converting longitudinal position error into a corrective curvature
     AP_Float _turn_radius;            // minimum turn radius in meters
     AP_Float _angle_gain;             // gain for converting heading error into a corrective curvature
+    AP_Float _xtrack_stability_threshold_distance; // distance at which we consider the vehicle to be stable in meters
 }; 
