@@ -71,7 +71,7 @@ public:
     float wp_bearing_cd() const { return _wp_bearing_cd; }
     float nav_bearing_cd() const { return _desired_heading_cd; }
     float crosstrack_error() const { return _cross_track_error; }
-    float speed_error() const { return _angle_error*1000.0f;}
+    float speed_error() const { return  degrees( _angle_error)*-10.0f;}
     
 
     // get object avoidance adjusted origin. Note: this is not guaranteed to be valid (i.e. _orig_and_dest_valid is not checked)
