@@ -71,6 +71,8 @@ public:
     float wp_bearing_cd() const { return _wp_bearing_cd; }
     float nav_bearing_cd() const { return _desired_heading_cd; }
     float crosstrack_error() const { return _cross_track_error; }
+    float speed_error() const { return _angle_error*1000.0f;}
+    
 
     // get object avoidance adjusted origin. Note: this is not guaranteed to be valid (i.e. _orig_and_dest_valid is not checked)
     virtual const Location &get_oa_origin() const { return _origin; }
@@ -188,6 +190,7 @@ protected:
     float _desired_heading_cd;      // desired heading (back towards line between origin and destination)
     float _wp_bearing_cd;           // heading to waypoint in centi-degrees
     float _cross_track_error;       // cross track error (in meters).  distance from current position to closest point on line between origin and destination
+    float _angle_error;
 
     // variables for reporting
     float _distance_to_destination; // distance from vehicle to final destination in meters

@@ -191,7 +191,7 @@ float ModeAuto::nav_bearing() const
 {
     switch (_submode) {
     case SubMode::WP:
-        return g2.wp_nav.nav_bearing_cd() * 0.01f;
+        return g2.wp_nav.nav_bearing_cd();
     case SubMode::HeadingAndSpeed:
     case SubMode::Stop:
         return 0.0f;
@@ -209,6 +209,26 @@ float ModeAuto::nav_bearing() const
     // this line should never be reached
     return 0.0f;
 }
+
+float ModeAuto::speed_error() const
+{
+    switch (_submode) {
+        case SubMode::WP:
+            return g2.wp_nav.speed_error();
+        case SubMode::HeadingAndSpeed:
+        case SubMode::Stop:
+        case SubMode::RTL:
+        case SubMode::Loiter:
+        case SubMode::Guided:
+        case SubMode::NavScriptTime:
+        case SubMode::Circle:
+            return 0.0f;
+        }
+    
+        // this line should never be reached
+        return 0.0f;
+}
+
 
 // return cross track error (i.e. vehicle's distance from the line between waypoints)
 float ModeAuto::crosstrack_error() const
