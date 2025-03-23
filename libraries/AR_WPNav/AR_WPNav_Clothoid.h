@@ -119,6 +119,7 @@ private:
         Location constant_turn_start;
         Location exit_spiral_start;
         Location exit_spiral_end;
+        Location turn_centre;
         float target_curvature;
     } next_turn;
 
@@ -130,7 +131,7 @@ private:
     float _current_track_heading;     // heading of current waypoint from previous waypoint
 
     float distance_along_segment;
-
+    
     Location _prev_location;
 
 

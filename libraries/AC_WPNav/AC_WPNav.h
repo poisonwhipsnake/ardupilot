@@ -220,6 +220,8 @@ public:
     /// return the crosstrack_error - horizontal error of the actual position vs the desired position
     float crosstrack_error() const { return _pos_control.crosstrack_error();}
 
+    float speed_error() const {return 1.0f;}
+
     static const struct AP_Param::GroupInfo var_info[];
 
 protected:
