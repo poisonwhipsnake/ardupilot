@@ -87,6 +87,12 @@ private:
     // calculate position on clothoid given heading change from start
     void calc_clothoid_position(float heading_change, float& x, float& y) const;
 
+    void fresnel_CS(float t, float& S, float& C) const;
+
+    Vector2f clothoid_position_from_heading(float heading_change, float clothoid_rate) const;
+
+    Vector2f clothoid_position_from_s(float s, float clothoid_rate) const;
+
     // calculate heading and curvature at a given distance along clothoid
     void calc_clothoid_properties(float distance, float& heading, float& curvature) const;
 
@@ -100,14 +106,19 @@ private:
         float total_turn_angle;
         float entry_angle;
         bool use_fixed_radius;
+        float fixed_rate_angle;
         float exit_angle;
         float straight_length;
+
         float entry_spiral_heading;
         float constant_turn_heading;
         float exit_spiral_heading;
-        Vector2f entry_spiral_start_ned;
-        Vector2f constant_turn_start_ned;
-        Vector2f exit_spiral_start_ned;
+        float turn_complete_heading;
+
+        Location entry_spiral_start;
+        Location constant_turn_start;
+        Location exit_spiral_start;
+        Location exit_spiral_end;
         float target_curvature;
     } next_turn;
 
@@ -117,6 +128,10 @@ private:
     float _target_curvature;         // target path curvature in 1/meters (positive = turn right, negative = turn left)
     float turn_start_distance;
     float _current_track_heading;     // heading of current waypoint from previous waypoint
+
+    float distance_along_segment;
+
+    Location _prev_location;
 
 
     Location _prev_wp;                // previous waypoint

@@ -48,21 +48,13 @@ const AP_Param::GroupInfo AR_WPNav_Clothoid::var_info[] = {
     // @Increment: 0.01
     AP_GROUPINFO("LONGGAIN", 3, AR_WPNav_Clothoid, _long_error_gain, 0.05f),
 
-    // @Param: LOOKAHD
-    // @DisplayName: Look ahead distance
-    // @Description: Distance ahead of the vehicle to look for path corrections in straight line mode
-    // @Units: m
-    // @Range: 1.0 20.0
-    // @Increment: 0.5
-    AP_GROUPINFO("LOOKAHD", 4, AR_WPNav_Clothoid, _look_ahead_dist, 5.0f),
-
     // @Param: TURNRAD
     // @DisplayName: Turn radius
     // @Description: Minimum radius for constant radius turns
     // @Units: m
     // @Range: 0.5 100.0
     // @Increment: 0.1
-    AP_GROUPINFO("TURNRAD", 5, AR_WPNav_Clothoid, _turn_radius, 4.0f),
+    AP_GROUPINFO("TURNRAD", 4, AR_WPNav_Clothoid, _turn_radius, 4.0f),
 
     // @Param: STR_ANG_P
     // @DisplayName: Straight Angle Proportional Gain
@@ -70,7 +62,7 @@ const AP_Param::GroupInfo AR_WPNav_Clothoid::var_info[] = {
     // @Units: m
     // @Range: 0.5 100.0
     // @Increment: 0.1
-    AP_GROUPINFO("STR_A_P", 6, AR_WPNav_Clothoid, _angle_gain, 1.0f),
+    AP_GROUPINFO("STR_A_P", 5, AR_WPNav_Clothoid, _angle_gain, 1.0f),
 
 
     AP_GROUPEND
@@ -113,24 +105,32 @@ void AR_WPNav_Clothoid::update(float dt)
         case ClothoidState::ENTRY_SPIRAL: {
             // calculate heading change from start of entry spiral
             float heading_change = wrap_PI(current_heading - current_turn.entry_spiral_heading);
+
+            float step_distance = current_loc.get_distance(_prev_location);
+            _prev_location = current_loc;
+            distance_along_segment += step_distance;   
             
             // calculate ideal position on clothoid
             float ideal_x, ideal_y;
             calc_clothoid_position(heading_change, ideal_x, ideal_y);
             
-            // convert current position to NED and calculate error
-            Vector3f current_pos;
-            if (!current_loc.get_vector_from_origin_NEU(current_pos)) {
-                return;
-            }
-            Vector2f current_pos_ned(current_pos.x, current_pos.y);
-            Vector2f error_vec = current_pos_ned - current_turn.entry_spiral_start_ned - Vector2f(ideal_x, ideal_y);
-            
+            Vector2f ideal_clothoid(ideal_x, ideal_y);
+            ideal_clothoid.rotate(current_turn.entry_spiral_heading);
+            Location ideal_loc = current_turn.entry_spiral_start;
+            ideal_loc.offset(ideal_clothoid.x, ideal_clothoid.y);
+
+            Vector2f error_vec = current_loc.get_distance_NE(ideal_loc);
+
             // calculate curvature based on heading change
-            float curvature = _clothoid_rate * sqrtf(2.0f * fabsf(heading_change) / _clothoid_rate);
+            float curvature = sqrtf(2.0f * fabsf(heading_change) * _clothoid_rate);
             target_curvature = curvature;
+            if(current_turn.total_turn_angle < 0) {
+                target_curvature = -target_curvature;
+            }
             
             // calculate lateral correction using cross product
+
+            _cross_track_error = heading_vec % error_vec;
             float lateral_correction = -_pos_error_gain * (heading_vec % error_vec);
             
             // calculate longitudinal correction using dot product
@@ -138,6 +138,9 @@ void AR_WPNav_Clothoid::update(float dt)
             
             // combine corrections
             target_curvature += lateral_correction + longitudinal_correction;
+
+            //undo corrections while debugging
+            target_curvature -= lateral_correction + longitudinal_correction;
             
             // transition to constant turn if we've reached the entry spiral heading change
             if (fabsf(heading_change) >= fabsf(current_turn.entry_angle)) {
@@ -160,35 +163,32 @@ void AR_WPNav_Clothoid::update(float dt)
             Vector2f turn_center;
             if (current_turn.total_turn_angle > 0) {
                 // right turn - center is to the right
-                turn_center.x = -_turn_radius * sinf(current_turn.constant_turn_heading);
-                turn_center.y = _turn_radius * cosf(current_turn.constant_turn_heading);
+                turn_center.x = -_turn_radius * cosf(current_turn.constant_turn_heading);
+                turn_center.y = _turn_radius * sinf(current_turn.constant_turn_heading);
             } else {
                 // left turn - center is to the left
-                turn_center.x = _turn_radius * sinf(current_turn.constant_turn_heading);
-                turn_center.y = -_turn_radius * cosf(current_turn.constant_turn_heading);
+                turn_center.x = _turn_radius * cosf(current_turn.constant_turn_heading);
+                turn_center.y = -_turn_radius * sinf(current_turn.constant_turn_heading);
             }
-            turn_center += current_turn.constant_turn_start_ned;
+            Location turn_center_loc = current_turn.constant_turn_start;
+            turn_center_loc.offset(turn_center.x, turn_center.y);
             
             // calculate ideal position on circle as a vector from turn center
-            Vector2f ideal_pos(_turn_radius * cosf(heading_change),
-                             _turn_radius * sinf(heading_change));
+            Vector2f ideal_pos(_turn_radius * cosf(current_heading),
+                             -_turn_radius * sinf(current_heading));
             if (current_turn.total_turn_angle < 0) {
                 ideal_pos.y = -ideal_pos.y;  // mirror for left turns
+                ideal_pos.x = -ideal_pos.x;
             }
             
-            // rotate by initial heading and offset from turn center
-            ideal_pos.rotate(current_turn.constant_turn_heading);
-            ideal_pos += turn_center;
             
-            // convert current position to NED and calculate error
-            Vector3f current_pos;
-            if (!current_loc.get_vector_from_origin_NEU(current_pos)) {
-                return;
-            }
-            Vector2f current_pos_ned(current_pos.x, current_pos.y);
-            Vector2f error_vec = current_pos_ned - ideal_pos;
+            Location ideal_loc = turn_center_loc;
+            ideal_loc.offset(ideal_pos.x, ideal_pos.y);
+            
+            Vector2f error_vec = current_loc.get_distance_NE(ideal_loc);
             
             // calculate lateral correction using cross product
+            _cross_track_error = heading_vec % error_vec;
             float lateral_correction = -_pos_error_gain * (heading_vec % error_vec);
             
             // calculate longitudinal correction using dot product
@@ -196,10 +196,13 @@ void AR_WPNav_Clothoid::update(float dt)
             
             // combine corrections
             target_curvature += lateral_correction + longitudinal_correction;
+
+
+            //undo corrections while debugging
+            target_curvature -= lateral_correction + longitudinal_correction;
             
             // transition to exit spiral when we've completed the constant turn portion
-            float const_turn_angle = current_turn.total_turn_angle - current_turn.entry_angle;
-            if (fabsf(heading_change) >= fabsf(const_turn_angle)) {
+            if (fabsf(heading_change) >= fabsf(current_turn.fixed_rate_angle)) {
                 _clothoid_state = ClothoidState::EXIT_SPIRAL;
             }
             break;
@@ -209,22 +212,29 @@ void AR_WPNav_Clothoid::update(float dt)
             // mirror of entry spiral calculations
             float heading_change = wrap_PI(current_heading - current_turn.exit_spiral_heading);
             
+            float angle_on_clothoid = fabsf(wrap_PI(current_turn.turn_complete_heading - current_heading));
+
             float ideal_x, ideal_y;
-            calc_clothoid_position(-heading_change, ideal_x, ideal_y); // note negative heading change for exit spiral
+            calc_clothoid_position(angle_on_clothoid, ideal_x, ideal_y); // note negative heading change for exit spiral
             
-            // convert current position to NED and calculate error
-            Vector3f current_pos;
-            if (!current_loc.get_vector_from_origin_NEU(current_pos)) {
-                return;
-            }
-            Vector2f current_pos_ned(current_pos.x, current_pos.y);
-            Vector2f error_vec = current_pos_ned - current_turn.exit_spiral_start_ned - Vector2f(ideal_x, ideal_y);
+            Vector2f ideal_clothoid(ideal_x, -ideal_y);
+            
+            ideal_clothoid.rotate(current_turn.exit_spiral_heading + M_PI);
+            Location ideal_loc = current_turn.exit_spiral_end;
+            ideal_loc.offset(ideal_clothoid.x, ideal_clothoid.y);
+
+            Vector2f error_vec = current_loc.get_distance_NE(ideal_loc);
             
             // calculate curvature based on heading change
-            float curvature = _clothoid_rate * sqrtf(2.0f * fabsf(heading_change) / _clothoid_rate);
-            target_curvature = -curvature; // note negative for exit spiral
+            float curvature = sqrtf(2.0f * fabsf(angle_on_clothoid) * _clothoid_rate);
+            target_curvature = curvature; // note negative for exit spiral
+            if(current_turn.total_turn_angle < 0) {
+                target_curvature = -target_curvature;
+            }
+            
             
             // calculate lateral correction using cross product
+            _cross_track_error = heading_vec % error_vec;
             float lateral_correction = -_pos_error_gain * (heading_vec % error_vec);
             
             // calculate longitudinal correction using dot product
@@ -232,9 +242,11 @@ void AR_WPNav_Clothoid::update(float dt)
             
             // combine corrections
             target_curvature += lateral_correction + longitudinal_correction;
+            //undo corrections while debugging
+            target_curvature -= lateral_correction + longitudinal_correction;
             
             // transition to straight when we've completed the exit spiral
-            if (fabsf(heading_change) >= fabsf(current_turn.exit_angle)) {
+            if (fabsf(heading_change) >= fabsf(current_turn.entry_angle)) {
                 _clothoid_state = ClothoidState::STRAIGHT;
             }
             break;
@@ -245,6 +257,7 @@ void AR_WPNav_Clothoid::update(float dt)
 
                
             float crosstrack = calc_crosstrack_error_strait(current_loc);
+            _cross_track_error = crosstrack;
             float angle_error = wrap_PI(_current_track_heading - current_heading);
             target_curvature = (-crosstrack*_pos_error_gain) + (angle_error*_angle_gain);
             break;
@@ -305,6 +318,13 @@ void AR_WPNav_Clothoid::calculate_clothoid_parameters(const Location& prev_wp, c
 {
     if(reset_state) {
         _clothoid_state = ClothoidState::ENTRY_SPIRAL;
+        distance_along_segment = 0;
+        Location current_loc;
+        if (!AP::ahrs().get_location(current_loc)) {
+            return;
+        }
+        _prev_location = current_loc;
+
     }   
     else{
         _clothoid_state = ClothoidState::STRAIGHT;
@@ -330,22 +350,23 @@ void AR_WPNav_Clothoid::calculate_clothoid_parameters(const Location& prev_wp, c
 
     float clothoid_angle = 0.5f * max_curvature*max_curvature/_clothoid_rate;
 
-    float fixed_rate_angle = 0;
+    next_turn.fixed_rate_angle = 0;
 
     // determine if we need a constant radius turn
     if (fabsf(next_turn.total_turn_angle) > 2.0f * clothoid_angle) {
         // large turn - use entry spiral, constant radius and exit spiral
 
         next_turn.use_fixed_radius = true;
-        fixed_rate_angle = fabsf(next_turn.total_turn_angle) - (2.0f * clothoid_angle);
-        float a = _turn_radius* cosf(fixed_rate_angle);
+        next_turn.fixed_rate_angle = fabsf(next_turn.total_turn_angle) - (2.0f * clothoid_angle);
+        float a = _turn_radius* sinf(next_turn.fixed_rate_angle/2);
         float x , y;
         calc_clothoid_position(clothoid_angle, x, y);
-        
 
-        float omega = 90 - clothoid_angle - (fixed_rate_angle/2);
-        float b = y * cosf(omega);
-        turn_start_distance = (a+b)/sinf(fabsf(next_turn.total_turn_angle)/2);
+        float omega =  M_PI_2 - clothoid_angle - (next_turn.fixed_rate_angle/2);
+        float b = y / cosf(omega);
+        float c = sqrtf((b*b)-(y*y));
+        float d = ((a+b)/sinf(fabsf(M_PI-next_turn.total_turn_angle)/2));
+        turn_start_distance = d+x-c;
         
         if(next_turn.total_turn_angle < 0) {
             clothoid_angle = -clothoid_angle;
@@ -371,34 +392,33 @@ void AR_WPNav_Clothoid::calculate_clothoid_parameters(const Location& prev_wp, c
     // store headings
     next_turn.entry_spiral_heading = radians(prev_wp.get_bearing_to(curr_wp) * 0.01f);
     next_turn.constant_turn_heading = next_turn.entry_spiral_heading + next_turn.entry_angle;
+    next_turn.exit_spiral_heading = next_turn.entry_spiral_heading + next_turn.exit_angle;
+    next_turn.turn_complete_heading = radians(curr_wp.get_bearing_to(next_wp) * 0.01f);
+
+    // calculate entry spiral start positions
+    next_turn.entry_spiral_start = curr_wp;
+    next_turn.entry_spiral_start.offset_bearing(degrees(next_turn.entry_spiral_heading), -turn_start_distance);
     
-    next_turn.exit_spiral_heading = next_turn.constant_turn_heading + fixed_rate_angle;
-
-    
-
-    // store start positions
-    /*Location current_loc;
-    if (!AP::ahrs().get_location(current_loc)) {
-        return;
+    //calculate constant turn start position
+    float x , y;
+    calc_clothoid_position(clothoid_angle, x, y);
+    float bearing_to_clothoid_point = tanf(y/x);
+    if (next_turn.total_turn_angle < 0) {
+        bearing_to_clothoid_point = -bearing_to_clothoid_point;
     }
-    _entry_spiral_start_ned.x = curr_pos.x;
-    _entry_spiral_start_ned.y = curr_pos.y;
+    float distance_to_clothoid_point = sqrtf(x*x + y*y);
+    next_turn.constant_turn_start = next_turn.entry_spiral_start;
+    next_turn.constant_turn_start.offset_bearing(degrees(bearing_to_clothoid_point+next_turn.entry_spiral_heading), distance_to_clothoid_point);
 
-    // calculate constant turn start position
-    float entry_x, entry_y;
-    calc_clothoid_position(_entry_angle, entry_x, entry_y);
-    _constant_turn_start_ned = _entry_spiral_start_ned + Vector2f(entry_x, entry_y);
+    //calculate exit spiral start position
+    next_turn.exit_spiral_start = curr_wp;
+    next_turn.exit_spiral_start.offset_bearing(degrees(next_turn.turn_complete_heading), turn_start_distance);
+    next_turn.exit_spiral_start.offset_bearing(degrees(-bearing_to_clothoid_point+next_turn.turn_complete_heading), -distance_to_clothoid_point);
 
-    // calculate exit spiral start position
-    float const_turn_angle = _total_turn_angle - _entry_angle - _exit_angle;
-    float const_turn_radius = _turn_radius;
-    if (_total_turn_angle < 0) {
-        const_turn_radius = -const_turn_radius;
-    }
-    float const_turn_x = const_turn_radius * (sinf(_constant_turn_heading + const_turn_angle) - sinf(_constant_turn_heading));
-    float const_turn_y = const_turn_radius * (-cosf(_constant_turn_heading + const_turn_angle) + cosf(_constant_turn_heading));
-    _exit_spiral_start_ned = _constant_turn_start_ned + Vector2f(const_turn_x, const_turn_y);
-    */
+    next_turn.exit_spiral_end = curr_wp;
+    next_turn.exit_spiral_end.offset_bearing(degrees(next_turn.turn_complete_heading), turn_start_distance);
+
+
 
 }
 
@@ -408,25 +428,96 @@ void AR_WPNav_Clothoid::calc_clothoid_position(float heading_change, float& x, f
     // Use Fresnel integrals approximation
     // For small angles, we can use Taylor series approximation
     float abs_heading = fabsf(heading_change);
+    Vector2f pos = clothoid_position_from_heading(abs_heading, _clothoid_rate);
+    x = pos.x;
+    y = pos.y;
+    
+    /*
     if (abs_heading < 0.1f) {
-        float s = heading_change / _clothoid_rate;
-        x = s * (1.0f - heading_change * heading_change / 10.0f);
-        y = s * s * _clothoid_rate * (1.0f / 3.0f - heading_change * heading_change / 42.0f);
+        float s = abs_heading / _clothoid_rate;
+        x = s * (1.0f - abs_heading * abs_heading / 10.0f);
+        y = s * s * _clothoid_rate * (1.0f / 3.0f - abs_heading * abs_heading / 42.0f);
     } else {
         // For larger angles, use more terms of Fresnel integrals
         float s = sqrtf(2.0f * abs_heading / _clothoid_rate);
-        float c = cosf(heading_change);
-        float s2 = sinf(heading_change);
+        float c = cosf(abs_heading);
+        float s2 = sinf(abs_heading);
         
-        x = s * (0.87890625f - 0.51562500f * c - 0.36328125f * s2);
-        y = s * (0.87890625f - 0.51562500f * s2 + 0.36328125f * c);
+        x = s * (0.87890625f - (0.51562500f * c) - (0.36328125f * s2));
+        y = s * (0.87890625f - (0.51562500f * s2) + (0.36328125f * c));
         
-        if (heading_change < 0) {
-            y = -y;
-        }
+        //if (heading_change < 0) {
+           // y = -y;
+        //}
     }
+        */
 
 }
+
+// Fresnel integrals (simple accurate approximation)
+void AR_WPNav_Clothoid::fresnel_CS(float t, float& S, float& C) const
+{
+    // Use a polynomial approximation (or add lookup later if needed)
+    // Abramowitz & Stegun-based power series (valid for t < 2)
+    if (t < 1.6f) {
+        float t2 = t * t;
+        float t3 = t2 * t;
+        float t5 = t3 * t2;
+        float t7 = t5 * t2;
+        float t9 = t7 * t2;
+
+        C = t - (M_PI * M_PI * t5) / 40.0f + (M_PI * M_PI * M_PI * M_PI * t9) / 3456.0f;
+        S = (M_PI * t3) / 6.0f - (M_PI * M_PI * M_PI * t7) / 336.0f;
+    } else {
+        // Asymptotic expansion for large t
+        float z = M_PI_2 * t * t;
+        C = 0.5f + cosf(z) / (M_PI * t);
+        S = 0.5f - sinf(z) / (M_PI * t);
+    }
+}
+
+/// Computes clothoid position from heading change and clothoid rate
+Vector2f AR_WPNav_Clothoid::clothoid_position_from_heading(float heading_change, float clothoid_rate) const
+{
+    if (heading_change <= 0.0f) {
+        return Vector2f(0.0f, 0.0f);
+    }
+
+    // Arc length from heading
+    float s = sqrtf(2.0f * heading_change / clothoid_rate);
+
+    // Fresnel normalization
+    float A = sqrtf(clothoid_rate / M_PI);
+    float t = A * s;
+
+    float S, C;
+    fresnel_CS(t, S, C);
+
+    float x = C / A;
+    float y = S / A;
+
+    return Vector2f(x, y);
+}
+
+/// Computes clothoid position from arc length and clothoid rate
+Vector2f AR_WPNav_Clothoid::clothoid_position_from_s(float s, float clothoid_rate) const
+{
+    if (s <= 0.0f) {
+        return Vector2f(0.0f, 0.0f);
+    }
+
+    float A = sqrtf(clothoid_rate / M_PI);
+    float t = A * s;
+
+    float S, C;
+    fresnel_CS(t, S, C);
+
+    float x = C / A;
+    float y = S / A;
+
+    return Vector2f(x, y);
+}
+    
 
 // calculate heading and curvature at a given distance along clothoid
 void AR_WPNav_Clothoid::calc_clothoid_properties(float distance, float& heading, float& curvature) const
@@ -451,7 +542,7 @@ void AR_WPNav_Clothoid::update_clothoid_distance_and_bearing()
     Vector2f current_pos_ned(current_pos.x, current_pos.y);
 
     // calculate bearing and crosstrack error based on current navigation segment
-    switch (_clothoid_state) {
+    /*switch (_clothoid_state) {
         case ClothoidState::ENTRY_SPIRAL: {
             // calculate position relative to entry spiral start
             Vector2f rel_pos = current_pos_ned - current_turn.entry_spiral_start_ned;
@@ -481,9 +572,12 @@ void AR_WPNav_Clothoid::update_clothoid_distance_and_bearing()
             _wp_bearing_cd = current_loc.get_bearing_to(_destination);
             break;
     }
+            */
+    _wp_bearing_cd = current_loc.get_bearing_to(_destination);
+
 
     // calculate cross track error (distance from current position to closest point on line between origin and destination)
-    _cross_track_error = calc_crosstrack_error(current_loc);
+    //_cross_track_error = calc_crosstrack_error(current_loc);
 
     // calculate distance to destination
     _distance_to_destination = current_loc.get_distance(_destination);
