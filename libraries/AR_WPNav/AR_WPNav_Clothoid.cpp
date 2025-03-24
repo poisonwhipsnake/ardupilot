@@ -249,9 +249,29 @@ void AR_WPNav_Clothoid::update(float dt)
         }
     }
 
-    if (fabsf(_cross_track_error) < _xtrack_stability_threshold_distance) {
-        target_curvature += (-_cross_track_error*_pos_error_gain) + (_angle_error*_angle_gain);
+    float target_curvature_control =  (-_cross_track_error*_pos_error_gain) + (_angle_error*_angle_gain);
+    
+    
+
+    if ((_cross_track_error < 0 && _angle_error < -0.1) || (_cross_track_error > 0 && _angle_error > 0.1)){
+
+        float cross_track_factor = (M_PI_4 - (fabsf(_angle_error)-0.1))/M_PI_4;
+        if ((fabsf(_angle_error)-0.1) > M_PI_4){
+            cross_track_factor = 0;
+        }
+        target_curvature_control = (cross_track_factor*(-_cross_track_error*_pos_error_gain) )+ (_angle_error*_angle_gain);
+        
     }
+
+    target_curvature += target_curvature_control;
+
+    if (target_curvature > 2.0f / _turn_radius) {
+        target_curvature = 2.0f / _turn_radius;
+    } else if (target_curvature < -2.0f / _turn_radius) {
+        target_curvature = -2.0f / _turn_radius;
+    }
+
+    /*
     else{
         
         Vector2f curr_from_prev = _prev_wp.get_distance_NE(_curr_wp);
@@ -265,6 +285,7 @@ void AR_WPNav_Clothoid::update(float dt)
         target_curvature = _angle_error*_heading_gain;
 
     }
+        */
     
     // apply desired speed and store target curvature
     _desired_speed_limited = _atc.get_desired_speed_accel_limited(desired_speed, dt);
@@ -317,10 +338,12 @@ bool AR_WPNav_Clothoid::reached_destination() const
 // calculate clothoid parameters for the current path segment
 void AR_WPNav_Clothoid::calculate_clothoid_parameters(const Location& prev_wp, const Location& curr_wp, const Location& next_wp, bool reset_state)
 {
+   
+    Location current_loc;
     if(reset_state) {
         _clothoid_state = ClothoidState::ENTRY_SPIRAL;
         distance_along_segment = 0;
-        Location current_loc;
+     
         if (!AP::ahrs().get_location(current_loc)) {
             return;
         }
@@ -333,6 +356,14 @@ void AR_WPNav_Clothoid::calculate_clothoid_parameters(const Location& prev_wp, c
     
     current_turn = next_turn;
     
+    if (current_turn.entry_spiral_start.get_distance(current_loc) >_turn_radius/2) {
+        _clothoid_state = ClothoidState::STRAIGHT;
+    }
+    float clothoid_yaw_error = wrap_PI(current_turn.entry_spiral_heading - AP::ahrs().get_yaw());
+
+    if (  fabsf(clothoid_yaw_error)> M_PI/4){
+        _clothoid_state = ClothoidState::STRAIGHT;
+    }
 
     // calculate total turn angle
     next_turn.total_turn_angle = wrap_PI(radians((curr_wp.get_bearing_to(next_wp) - prev_wp.get_bearing_to(curr_wp)) * 0.01f));
