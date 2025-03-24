@@ -18,7 +18,7 @@ local PARAM_TABLE_KEY = 72
 
 assert(param:add_table(PARAM_TABLE_KEY, "LUA_STR_", 2), 'could not add param table')
 assert(param:add_param(PARAM_TABLE_KEY, 1, 'GAIN', 10000), 'could not add param1')
-assert(param:add_param(PARAM_TABLE_KEY, 2, 'TEST', 5.7), 'could not add param2')
+assert(param:add_param(PARAM_TABLE_KEY, 2, 'MAX', 45.0), 'could not add param2')
 
 local gain = Parameter("LUA_STR_GAIN")
 local param2 = Parameter("LUA_STR_TEST")
@@ -35,6 +35,11 @@ local serial_port = 0  -- Set to the correct serial port (SERIAL2 for example)
 local baud_rate = 115200
 local motor_enabled = false
 local max_speed = 10000 -- Max speed in the manual
+
+
+local gain_estimate = 0
+local wheel_angle_estimate = 0
+local centre_estimate = 0
 
 -- Buffer for handling serial data
 local serial_buffer = {}  
@@ -150,6 +155,7 @@ function update()
     if armed then
         local steering_demand = vehicle:get_control_output(4)
         send_pos_command(steering_demand)
+        update_virtual_angle_sensor()
     else
         disable_motor()
     end
