@@ -14,18 +14,19 @@
 
 local CONTROL_OUTPUT_YAW = 4
 
-local PARAM_TABLE_KEY = 72
+local PARAM_TABLE_KEY = 150
 
-assert(param:add_table(PARAM_TABLE_KEY, "LUA_STR_", 2), 'could not add param table')
+assert(param:add_table(PARAM_TABLE_KEY, "LUA_STR_", 3), 'could not add param table')
 assert(param:add_param(PARAM_TABLE_KEY, 1, 'GAIN', 10000), 'could not add param1')
 assert(param:add_param(PARAM_TABLE_KEY, 2, 'MAX', 45.0), 'could not add param2')
+assert(param:add_param(PARAM_TABLE_KEY, 3, 'WB', 4.50), 'could not add param2')
 
 local gain = Parameter("LUA_STR_GAIN")
-local param2 = Parameter("LUA_STR_TEST")
+local max_steering_angle = Parameter("LUA_STR_MAX")
+local wheel_base = Parameter("LUA_STR_WB")
 
 local encoder_query_cmd = {0xED, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}  -- Query encoder position
 local last_position_request_time = 0  -- Timestamp for requesting position
-local last_position = nil  -- Store last known position
 
 --------------------------------------------------------------------------------------------------
 -- ArduPilot Lua Script for controlling RS232 Motor
@@ -35,7 +36,10 @@ local serial_port = 0  -- Set to the correct serial port (SERIAL2 for example)
 local baud_rate = 115200
 local motor_enabled = false
 local max_speed = 10000 -- Max speed in the manual
+local previous_yaw = 0
 
+local filtered_angle_demand = 0
+local filtered_angle_estimate= 0
 
 local gain_estimate = 0
 local wheel_angle_estimate = 0
@@ -95,6 +99,8 @@ function send_pos_command(steering_demand)
     -- Convert steering (-1 to 1) to motor position range
     local pos = math.floor(-steering_demand * gain:get())
 
+    pos = pos + math.floor(centre_estimate)
+
     -- Convert to 4-byte representation
     local speed_bytes = int_to_bytes(pos)
 
@@ -148,6 +154,69 @@ function check_serial_buffer()
     end
 end
 
+function update_virtual_angle_sensor()
+    -- Update the virtual angle sensor
+    local current_speed = ahrs:groundspeed_vector():length()
+    if current_speed < 0.1 then
+        previous_yaw = ahrs:get_yaw()
+        return
+    end
+
+    if gain_estimate == 0 then
+        gain_estimate = gain:get()
+    end
+    
+    local steering_demand = vehicle:get_control_output(CONTROL_OUTPUT_YAW)
+
+    local yaw_change = ahrs:get_yaw() - previous_yaw
+    if yaw_change > math.pi then
+        yaw_change = yaw_change - (2 * math.pi)
+    elseif yaw_change < -math.pi then
+        yaw_change = yaw_change + (2 * math.pi)
+    end
+    previous_yaw = ahrs:get_yaw()
+   
+    local yaw_rate = yaw_change / 0.02 --radians per seconds
+    local curvature = yaw_rate / current_speed
+    local steering_angle_current_estimate = math.atan(wheel_base:get() * curvature) * 180 / math.pi
+    local steering_angle_current_demand = steering_demand * max_steering_angle:get()
+    filtered_angle_demand = (filtered_angle_demand*0.98) + (steering_angle_current_demand *0.02)
+    filtered_angle_estimate = (filtered_angle_estimate*0.98) + (steering_angle_current_estimate *0.02)
+
+
+    local gain_adjust = 1
+    if ((math.abs(filtered_angle_demand)>1.0) and (math.abs(filtered_angle_estimate)>1.0))then
+        
+        gain_adjust = filtered_angle_demand / filtered_angle_estimate
+        if gain_adjust < 0 then
+            gain_adjust = 1
+        end
+        gain_adjust = ((gain_adjust-1)*0.001)+1
+    end
+
+    local angle_error = filtered_angle_estimate - filtered_angle_demand
+    local offset_adjust = angle_error*0.1
+    if angle_error < 0 then
+        offset_adjust = -offset_adjust
+    end
+
+    gain_estimate = gain_estimate * gain_adjust
+    centre_estimate = centre_estimate + offset_adjust
+
+    --if one second has elapsed print the values
+    local now = millis()
+    if (now - last_position_request_time) > 1000 then
+        last_position_request_time = now
+        gcs:send_text(2, "Steering Angle Estimate: " .. filtered_angle_estimate)
+        gcs:send_text(2, "Steering Angle Demand: " .. filtered_angle_demand)
+        gcs:send_text(2, "Gain Estimate: " .. gain_estimate)
+        gcs:send_text(2, "Centre Estimate: " .. centre_estimate)
+    end
+
+
+    
+    
+end
 
 function update()
     local armed = arming:is_armed()
@@ -158,13 +227,6 @@ function update()
         update_virtual_angle_sensor()
     else
         disable_motor()
-    end
-
-    -- Request encoder position every second
-    local now = millis()
-    if (now - last_position_request_time) > 1000 then
-        last_position_request_time = now
-        --request_encoder_position()
     end
     
     -- Check if we received an encoder response (or discard other messages)
