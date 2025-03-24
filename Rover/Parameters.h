@@ -15,6 +15,7 @@
 #include <AP_Stats/AP_Stats.h>
 #include "AP_Torqeedo/AP_Torqeedo.h"
 #include <AP_WindVane/AP_WindVane.h>
+#include <AR_WPNav/AR_WPNav_Clothoid.h>
 
 #define AP_PARAM_VEHICLE_NAME rover
 
@@ -406,7 +407,7 @@ public:
 #endif // AP_SCRIPTING_ENABLED
 
     // waypoint navigation
-    AR_WPNav_OA wp_nav;
+    AR_WPNav_Clothoid wp_nav;
 
     // Sailboat functions
     Sailboat sailboat;

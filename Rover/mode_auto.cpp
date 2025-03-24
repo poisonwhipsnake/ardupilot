@@ -28,6 +28,9 @@ bool ModeAuto::_enter()
         start_stop();
     }
 
+    // initialize previous nav command state
+    have_prev_nav_cmd = false;
+
     // set flag to start mission
     waiting_to_start = true;
 
@@ -40,6 +43,9 @@ void ModeAuto::_exit()
     if (mission.state() == AP_Mission::MISSION_RUNNING) {
         mission.stop();
     }
+
+    // clear previous nav command state
+    have_prev_nav_cmd = false;
 }
 
 void ModeAuto::update()
@@ -185,7 +191,7 @@ float ModeAuto::nav_bearing() const
 {
     switch (_submode) {
     case SubMode::WP:
-        return g2.wp_nav.nav_bearing_cd() * 0.01f;
+        return g2.wp_nav.nav_bearing_cd();
     case SubMode::HeadingAndSpeed:
     case SubMode::Stop:
         return 0.0f;
@@ -203,6 +209,26 @@ float ModeAuto::nav_bearing() const
     // this line should never be reached
     return 0.0f;
 }
+
+float ModeAuto::speed_error() const
+{
+    switch (_submode) {
+        case SubMode::WP:
+            return g2.wp_nav.speed_error();
+        case SubMode::HeadingAndSpeed:
+        case SubMode::Stop:
+        case SubMode::RTL:
+        case SubMode::Loiter:
+        case SubMode::Guided:
+        case SubMode::NavScriptTime:
+        case SubMode::Circle:
+            return 0.0f;
+        }
+    
+        // this line should never be reached
+        return 0.0f;
+}
+
 
 // return cross track error (i.e. vehicle's distance from the line between waypoints)
 float ModeAuto::crosstrack_error() const
@@ -521,7 +547,7 @@ bool ModeAuto::start_command(const AP_Mission::Mission_Command& cmd)
 
     switch (cmd.id) {
     case MAV_CMD_NAV_WAYPOINT:  // Navigate to Waypoint
-        return do_nav_wp(cmd, false);
+        return do_nav_wp(cmd);
 
     case MAV_CMD_NAV_RETURN_TO_LAUNCH:
         do_RTL();
@@ -739,30 +765,53 @@ bool ModeAuto::do_nav_wp(const AP_Mission::Mission_Command& cmd, bool always_sto
     // delayed stored in p1 in seconds
     loiter_duration = ((int16_t) cmd.p1 < 0) ? 0 : cmd.p1;
     loiter_start_time = 0;
-    if (loiter_duration > 0) {
-        always_stop_at_destination = true;
+
+    // get next navigation command
+    AP_Mission::Mission_Command next_cmd;
+    Location next_cmdloc;
+    bool have_next_cmd = false;
+    if (!always_stop_at_destination && mission.get_next_nav_cmd(cmd.index + 1, next_cmd)) {
+        next_cmdloc = next_cmd.content.location;
+        next_cmdloc.sanitize(cmdloc);
+        have_next_cmd = true;
     }
 
-    // do not add next wp if there are no more navigation commands
-    AP_Mission::Mission_Command next_cmd;
-    if (always_stop_at_destination || !mission.get_next_nav_cmd(cmd.index+1, next_cmd)) {
-        // single destination
-        if (!set_desired_location(cmdloc)) {
-            return false;
-        }
-    } else {
-        // retrieve and sanitize next destination location
-        Location next_cmdloc = next_cmd.content.location;
-        next_cmdloc.sanitize(cmdloc);
-        if (!set_desired_location(cmdloc, next_cmdloc)) {
-            return false;
-        }
+    // calculate next navigation leg bearing if we have another waypoint
+    if (have_next_cmd) {
+        next_navigation_leg_cd = rover.current_loc.get_bearing_to(next_cmdloc);
     }
+
+    // calculate clothoid parameters using previous, current and next waypoints
+    if (have_prev_nav_cmd) {
+        g2.wp_nav.calculate_clothoid_parameters(prev_nav_cmd.content.location, cmdloc, have_next_cmd ? next_cmdloc : cmdloc, true);
+
+    } else {
+        // no previous waypoint, use current location as previous
+        g2.wp_nav.calculate_clothoid_parameters(rover.current_loc, cmdloc, have_next_cmd ? next_cmdloc : cmdloc, false);
+    }
+
+    // set target location to destination
+    if (!set_desired_location(cmdloc, have_next_cmd ? next_cmdloc : cmdloc)) {
+            return false;
+        }
+
+    // store this command as previous for next time
+    prev_nav_cmd = cmd;
+    have_prev_nav_cmd = true;
+
+    // set submode to WP
+    _submode = SubMode::WP;
 
     // just starting so we haven't previously reached the waypoint
     previously_reached_wp = false;
 
     return true;
+}
+
+// Overload for backwards compatibility
+bool ModeAuto::do_nav_wp(const AP_Mission::Mission_Command& cmd)
+{
+    return do_nav_wp(cmd, false);
 }
 
 // do_nav_delay - Delay the next navigation command

@@ -116,7 +116,7 @@ void GCS_MAVLINK_Rover::send_nav_controller_output() const
         MIN(control_mode->get_distance_to_destination(), UINT16_MAX),
         0,
         control_mode->speed_error(),
-        control_mode->crosstrack_error());
+        control_mode->crosstrack_error()*10.0f);
 }
 
 void GCS_MAVLINK_Rover::send_servo_out()

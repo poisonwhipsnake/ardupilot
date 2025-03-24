@@ -235,6 +235,14 @@ float Mode::crosstrack_error() const
     return g2.wp_nav.crosstrack_error();
 }
 
+float Mode::speed_error() const
+{
+    if (!is_autopilot_mode()) {
+        return 0.0f;
+    }
+    return g2.wp_nav.speed_error();
+}
+
 // return desired lateral acceleration
 float Mode::get_desired_lat_accel() const
 {
