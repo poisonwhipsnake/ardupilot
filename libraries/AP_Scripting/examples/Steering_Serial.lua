@@ -29,6 +29,7 @@ assert(param:add_table(PARAM_TABLE_KEY, "LUA_STR_", 2), 'could not add param tab
 assert(param:add_param(PARAM_TABLE_KEY, 1, 'GAIN', 10000), 'could not add param1')
 assert(param:add_param(PARAM_TABLE_KEY, 2, 'TEST', 5.7), 'could not add param2')
 
+
 local gain = Parameter("LUA_STR_GAIN")
 local param2 = Parameter("LUA_STR_TEST")
 
