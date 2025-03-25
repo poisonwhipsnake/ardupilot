@@ -384,7 +384,7 @@ private:
 
     // Previous navigation command
     AP_Mission::Mission_Command prev_nav_cmd;
-    bool have_prev_nav_cmd;
+    AP_Mission::Mission_Command anticipated_curr_nav_cmd;
 
 #if AP_SCRIPTING_ENABLED
     // nav_script_time command variables

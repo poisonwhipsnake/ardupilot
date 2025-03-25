@@ -98,43 +98,46 @@ AR_WPNav::AR_WPNav(AR_AttitudeControl& atc, AR_PosControl &pos_control) :
 // initialise waypoint controller.  speed_max should be set to the maximum speed in m/s (or left at zero to use the default speed)
 void AR_WPNav::init(float speed_max)
 {
-    // determine max speed, acceleration and jerk
-    if (is_positive(speed_max)) {
-        _base_speed_max = speed_max;
-    } else {
-        _base_speed_max = _speed_max;
+    if (! initialised){
+            // determine max speed, acceleration and jerk
+        if (is_positive(speed_max)) {
+            _base_speed_max = speed_max;
+        } else {
+            _base_speed_max = _speed_max;
+        }
+        _base_speed_max = MAX(AR_WPNAV_SPEED_MIN, _base_speed_max);
+        float atc_accel_max = MIN(_atc.get_accel_max(), _atc.get_decel_max());
+        if (!is_positive(atc_accel_max)) {
+            // accel_max of zero means no limit so use maximum acceleration
+            atc_accel_max = AR_WPNAV_ACCEL_MAX;
+        }
+        const float accel_max = is_positive(_accel_max) ? MIN(_accel_max, atc_accel_max) : atc_accel_max;
+        const float jerk_max = is_positive(_jerk_max) ? _jerk_max : accel_max;
+
+        // initialise position controller
+        _pos_control.set_limits(_base_speed_max, accel_max, _atc.get_turn_lat_accel_max(), jerk_max);
+
+        _scurve_prev_leg.init();
+        _scurve_this_leg.init();
+        _scurve_next_leg.init();
+        _track_scalar_dt = 1.0f;
+
+        // init some flags
+        _reached_destination = false;
+        _fast_waypoint = false;
+
+        // ensure pivot turns are deactivated
+        _pivot.deactivate();
+        _pivot_at_next_wp = false;
+
+        // initialise origin and destination to stopping point
+        _orig_and_dest_valid = false;
+        set_origin_and_destination_to_stopping_point();
+
+        // initialise nudge speed to zero
+        set_nudge_speed_max(0);
+        initialised = true;
     }
-    _base_speed_max = MAX(AR_WPNAV_SPEED_MIN, _base_speed_max);
-    float atc_accel_max = MIN(_atc.get_accel_max(), _atc.get_decel_max());
-    if (!is_positive(atc_accel_max)) {
-        // accel_max of zero means no limit so use maximum acceleration
-        atc_accel_max = AR_WPNAV_ACCEL_MAX;
-    }
-    const float accel_max = is_positive(_accel_max) ? MIN(_accel_max, atc_accel_max) : atc_accel_max;
-    const float jerk_max = is_positive(_jerk_max) ? _jerk_max : accel_max;
-
-    // initialise position controller
-    _pos_control.set_limits(_base_speed_max, accel_max, _atc.get_turn_lat_accel_max(), jerk_max);
-
-    _scurve_prev_leg.init();
-    _scurve_this_leg.init();
-    _scurve_next_leg.init();
-    _track_scalar_dt = 1.0f;
-
-    // init some flags
-    _reached_destination = false;
-    _fast_waypoint = false;
-
-    // ensure pivot turns are deactivated
-    _pivot.deactivate();
-    _pivot_at_next_wp = false;
-
-    // initialise origin and destination to stopping point
-    _orig_and_dest_valid = false;
-    set_origin_and_destination_to_stopping_point();
-
-    // initialise nudge speed to zero
-    set_nudge_speed_max(0);
 }
 
 // update navigation
