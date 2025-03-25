@@ -14,16 +14,18 @@
 
 local CONTROL_OUTPUT_YAW = 4
 
-local PARAM_TABLE_KEY = 150
+local PARAM_TABLE_KEY = 149
 
-assert(param:add_table(PARAM_TABLE_KEY, "LUA_STR_", 3), 'could not add param table')
+assert(param:add_table(PARAM_TABLE_KEY, "LUA_STR_", 4), 'could not add param table')
 assert(param:add_param(PARAM_TABLE_KEY, 1, 'GAIN', 10000), 'could not add param1')
 assert(param:add_param(PARAM_TABLE_KEY, 2, 'MAX', 45.0), 'could not add param2')
-assert(param:add_param(PARAM_TABLE_KEY, 3, 'WB', 4.50), 'could not add param2')
+assert(param:add_param(PARAM_TABLE_KEY, 3, 'WB', 4.50), 'could not add param3')
+assert(param:add_param(PARAM_TABLE_KEY, 4, 'C_I', 1.0), 'could not add param4')
 
 local gain = Parameter("LUA_STR_GAIN")
 local max_steering_angle = Parameter("LUA_STR_MAX")
 local wheel_base = Parameter("LUA_STR_WB")
+local correction_gain = Parameter("LUA_STR_C_I")
 
 local encoder_query_cmd = {0xED, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}  -- Query encoder position
 local last_position_request_time = 0  -- Timestamp for requesting position
@@ -195,10 +197,7 @@ function update_virtual_angle_sensor()
     end
 
     local angle_error = filtered_angle_estimate - filtered_angle_demand
-    local offset_adjust = angle_error*0.1
-    if angle_error < 0 then
-        offset_adjust = -offset_adjust
-    end
+    local offset_adjust = angle_error*correction_gain:get()
 
     gain_estimate = gain_estimate * gain_adjust
     centre_estimate = centre_estimate + offset_adjust
@@ -209,7 +208,7 @@ function update_virtual_angle_sensor()
         last_position_request_time = now
         gcs:send_text(2, "Steering Angle Estimate: " .. filtered_angle_estimate)
         gcs:send_text(2, "Steering Angle Demand: " .. filtered_angle_demand)
-        gcs:send_text(2, "Gain Estimate: " .. gain_estimate)
+        gcs:send_text(2, "Error " ..(filtered_angle_estimate - filtered_angle_demand))
         gcs:send_text(2, "Centre Estimate: " .. centre_estimate)
     end
 
