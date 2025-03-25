@@ -129,6 +129,7 @@ private:
     float _target_curvature;         // target path curvature in 1/meters (positive = turn right, negative = turn left)
     float turn_start_distance;
     float _current_track_heading;     // heading of current waypoint from previous waypoint
+    float _cross_track_integrator;    // integral of cross track error
 
     float distance_along_segment;
 
@@ -142,8 +143,8 @@ private:
     // parameters
     AP_Float _clothoid_rate;          // rate of change of curvature with distance
     AP_Float _pos_error_gain;         // gain for converting lateral position error into a corrective curvature
-    AP_Float _heading_gain;        // gain for converting longitudinal position error into a corrective curvature
+    AP_Float _pos_integrator_gain;        // gain for converting longitudinal position error into a corrective curvature
     AP_Float _turn_radius;            // minimum turn radius in meters
     AP_Float _angle_gain;             // gain for converting heading error into a corrective curvature
-    AP_Float _xtrack_stability_threshold_distance; // distance at which we consider the vehicle to be stable in meters
+    AP_Float _xtrack_integrator_distance_limit; // distance at which we consider the vehicle to be stable in meters
 }; 
