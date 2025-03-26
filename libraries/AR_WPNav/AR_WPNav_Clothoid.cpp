@@ -343,14 +343,20 @@ bool AR_WPNav_Clothoid::reached_destination() const
 void AR_WPNav_Clothoid::calculate_clothoid_parameters(const Location& prev_wp, const Location& curr_wp, const Location& next_wp, bool reset_state)
 {
    
+    
+    _prev_wp = prev_wp;
+    _curr_wp = curr_wp;
+    _next_wp = next_wp;
+    
     Location current_loc;
+    if (!AP::ahrs().get_location(current_loc)) {
+        return;
+    }
+
     if(reset_state) {
         _clothoid_state = ClothoidState::ENTRY_SPIRAL;
         distance_along_segment = 0;
      
-        if (!AP::ahrs().get_location(current_loc)) {
-            return;
-        }
         _prev_location = current_loc;
 
     }   
@@ -363,26 +369,13 @@ void AR_WPNav_Clothoid::calculate_clothoid_parameters(const Location& prev_wp, c
     current_turn = next_turn;
     
 
-    _prev_wp = prev_wp;
-    _curr_wp = curr_wp;
-    _next_wp = next_wp;
+    Vector2f first_vector = _prev_wp.get_distance_NE(_curr_wp);
+    Vector2f next_vector = _curr_wp.get_distance_NE(_next_wp);
 
-    
-    if (current_turn.entry_spiral_start.get_distance(current_loc) >_turn_radius/2) {
-        _clothoid_state = ClothoidState::STRAIGHT;
-        _prev_wp = current_loc;
-    }
-    float clothoid_yaw_error = wrap_PI(current_turn.entry_spiral_heading - AP::ahrs().get_yaw());
-
-    if (  fabsf(clothoid_yaw_error)> M_PI/4){
-        _clothoid_state = ClothoidState::STRAIGHT;
-        _prev_wp = current_loc;
-    }
 
     // calculate total turn angle
-    next_turn.total_turn_angle = wrap_PI(radians((_curr_wp.get_bearing_to(_next_wp) - _prev_wp.get_bearing_to(_curr_wp)) * 0.01f));
-    _current_track_heading = _prev_wp.get_bearing(_curr_wp);
-
+    next_turn.total_turn_angle = wrap_PI(next_vector.angle() - first_vector.angle());
+    _current_track_heading = first_vector.angle();
 
 
     // calculate maximum curvature (at end of entry spiral/start of constant turn)
