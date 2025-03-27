@@ -707,6 +707,10 @@ float AR_AttitudeControl::get_steering_out_rate(float desired_rate, bool motor_l
 
     output = degrees(atanf(output*_wheelbase/speed));
     output = output / _max_wheel_angle;
+
+    output = constrain_float(output, -1,1);
+
+
     // constrain and return final output
     return output;
 }
