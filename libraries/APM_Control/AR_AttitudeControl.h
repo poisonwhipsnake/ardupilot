@@ -148,6 +148,9 @@ private:
     AP_Float _pitch_to_throttle_ff; // balancebot feed forward from current pitch angle
     AP_Float _pitch_limit_tc;       // balancebot pitch limit protection time constant
     AP_Float _pitch_limit_throttle_thresh;  // balancebot pitch limit throttle threshold (in the range 0 to 1.0)
+    AP_Float _wheelbase;            // wheelbase in meters
+    AP_Float _max_wheel_angle;      // maximum wheel angle in degrees
+
 
     AP_Float _throttle_accel_max;   // speed/throttle control acceleration (and deceleration) maximum in m/s/s.  0 to disable limits
     AP_Float _throttle_decel_max;    // speed/throttle control deceleration maximum in m/s/s. 0 to use ATC_ACCEL_MAX for deceleration

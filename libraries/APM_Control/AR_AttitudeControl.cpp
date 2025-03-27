@@ -564,6 +564,10 @@ const AP_Param::GroupInfo AR_AttitudeControl::var_info[] = {
     // @User: Standard
     AP_GROUPINFO("_BAL_LIM_THR", 15, AR_AttitudeControl, _pitch_limit_throttle_thresh, AR_ATTCONTROL_PITCH_LIM_THR_THRESH),
 
+    AP_GROUPINFO("_WB", 16, AR_AttitudeControl, _wheelbase, 4.5f),
+
+    AP_GROUPINFO("_MAX_ANGLE", 17, AR_AttitudeControl, _max_wheel_angle, 45.0f),
+    
     AP_GROUPEND
 };
 
@@ -696,6 +700,13 @@ float AR_AttitudeControl::get_steering_out_rate(float desired_rate, bool motor_l
     // update pid to calculate output to motors
     float output = _steer_rate_pid.update_all(_desired_turn_rate, AP::ahrs().get_yaw_rate_earth(), dt, (motor_limit_left || motor_limit_right));
     output += _steer_rate_pid.get_ff();
+
+    if (speed < 0.1){
+        speed = 0.1;
+    }
+
+    output = degrees(atanf(output*_wheelbase/speed));
+    output = output / _max_wheel_angle;
     // constrain and return final output
     return output;
 }
