@@ -1,0 +1,31 @@
+name: Build Rover SITL
+
+on:
+  push:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: 'recursive'
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential python3-dev python3-pip
+        sudo pip3 install --upgrade pip
+        sudo pip3 install empy pyserial future lxml
+
+    - name: Build Rover SITL
+      run: |
+        ./waf configure --board sitl
+        ./waf build --target bin/ardurover
+
+    - name: Archive Rover binary
+      uses: actions/upload-artifact@v4
+      with:
+        name: rover-sitl
+        path: build/sitl/bin/ardurover 
