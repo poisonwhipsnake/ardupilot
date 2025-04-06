@@ -193,8 +193,10 @@ void AR_WPNav_Clothoid::update(float dt)
             if (fabsf(heading_change) >= fabsf(current_turn.fixed_rate_angle)) {
                 _clothoid_state = ClothoidState::EXIT_SPIRAL;
                 distance_along_segment = heading_vec * current_turn.exit_spiral_start.get_distance_NE(current_loc);
-                if (distance_along_segment < 0) {
-                    distance_along_segment = 0;
+
+                //set a reasonable minimum distance along segment
+                if (distance_along_segment < _turn_radius/5) {
+                    distance_along_segment = _turn_radius/5;
                 }
             }
             break;
