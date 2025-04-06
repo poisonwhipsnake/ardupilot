@@ -106,10 +106,7 @@ void AR_WPNav_Clothoid::update(float dt)
     float target_curvature = 0;
 
     
-    // if we give a really silly combination of waypoints, this ensures more reasonable behaviour
-    if (fabsf(_cross_track_error) > _turn_radius/2){
-        _clothoid_state = ClothoidState::STRAIGHT;
-    }
+
 
     switch (_clothoid_state) {
         case ClothoidState::ENTRY_SPIRAL: {
@@ -294,6 +291,11 @@ void AR_WPNav_Clothoid::update(float dt)
     // For compatibility with parent class, calculate turn rate and lateral acceleration
     _desired_turn_rate_rads = _target_curvature * speed;
     _desired_lat_accel = _target_curvature * speed * speed;
+
+    // if we give a really silly combination of waypoints, this ensures more reasonable behaviour
+    if (fabsf(_cross_track_error) > _turn_radius/2){
+        _clothoid_state = ClothoidState::STRAIGHT;
+    }
 }
 
 // calculate the crosstrack error
