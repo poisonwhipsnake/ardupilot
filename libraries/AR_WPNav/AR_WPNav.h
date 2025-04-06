@@ -108,6 +108,9 @@ public:
     // parameter var table
     static const struct AP_Param::GroupInfo var_info[];
 
+    AP_Float _speed_max;            // target speed between waypoints in m/s
+  
+
 protected:
 
     // true if update has been called recently
@@ -144,7 +147,6 @@ protected:
     void update_speed_max();
 
     // parameters
-    AP_Float _speed_max;            // target speed between waypoints in m/s
     AP_Float _radius;               // distance in meters from a waypoint when we consider the waypoint has been reached
     AR_PivotTurn _pivot;            // pivot turn controller
     AP_Float _accel_max;            // max acceleration.  If zero then attitude controller's specified max accel is used

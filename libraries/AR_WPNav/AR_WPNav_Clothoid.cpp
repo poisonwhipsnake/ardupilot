@@ -66,6 +66,8 @@ const AP_Param::GroupInfo AR_WPNav_Clothoid::var_info[] = {
 
     AP_GROUPINFO("I_LIM", 6, AR_WPNav_Clothoid, _xtrack_integrator_distance_limit, 0.5f),
 
+    AP_GROUPINFO("SPEED", 7, AR_WPNav, _speed_max, 3.0),
+
 
     AP_GROUPEND
 };
@@ -102,6 +104,12 @@ void AR_WPNav_Clothoid::update(float dt)
     // determine which segment we're in and calculate desired speed and curvature
     float desired_speed = _reversed ? -_speed_max : _speed_max;
     float target_curvature = 0;
+
+    
+    // if we give a really silly combination of waypoints, this ensures more reasonable behaviour
+    if (fabsf(_cross_track_error) > _turn_radius/2){
+        _clothoid_state = ClothoidState::STRAIGHT;
+    }
 
     switch (_clothoid_state) {
         case ClothoidState::ENTRY_SPIRAL: {
@@ -185,6 +193,9 @@ void AR_WPNav_Clothoid::update(float dt)
             if (fabsf(heading_change) >= fabsf(current_turn.fixed_rate_angle)) {
                 _clothoid_state = ClothoidState::EXIT_SPIRAL;
                 distance_along_segment = heading_vec * current_turn.exit_spiral_start.get_distance_NE(current_loc);
+                if (distance_along_segment < 0) {
+                    distance_along_segment = 0;
+                }
             }
             break;
         }
