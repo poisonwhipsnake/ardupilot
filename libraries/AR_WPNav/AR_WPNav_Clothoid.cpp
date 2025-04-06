@@ -195,8 +195,8 @@ void AR_WPNav_Clothoid::update(float dt)
                 distance_along_segment = heading_vec * current_turn.exit_spiral_start.get_distance_NE(current_loc);
 
                 //set a reasonable minimum distance along segment
-                if (distance_along_segment < _turn_radius/5) {
-                    distance_along_segment = _turn_radius/5;
+                if (distance_along_segment < -_turn_radius/5) {
+                    distance_along_segment = -_turn_radius/5;
                 }
             }
             break;
