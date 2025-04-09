@@ -169,7 +169,7 @@ const AP_Param::GroupInfo AP_DroneCAN::var_info[] = {
     // @Range: 0 200
     // @Units: Hz
     // @User: Advanced
-    AP_GROUPINFO("RLY_RT", 23, AP_DroneCAN, _relay.rate_hz, 0),
+    AP_GROUPINFO("RLY_RT", 27, AP_DroneCAN, _relay.rate_hz, 0),
 #endif
 
 #if AP_DRONECAN_SERIAL_ENABLED
@@ -268,6 +268,32 @@ const AP_Param::GroupInfo AP_DroneCAN::var_info[] = {
     // @Description: Serial protocol of DroneCAN serial port
     // @CopyFieldsFrom: CAN_D1_UC_S1_PRO
     AP_GROUPINFO("S3_PRO", 22,  AP_DroneCAN, serial.ports[2].state.protocol, -1),
+#endif
+
+#if AP_DRONECAN_SERIAL_NUM_PORTS > 3
+    // @Param: S3_NOD
+    // @DisplayName: Serial CAN remote node number
+    // @Description: CAN node number for serial port
+    // @CopyFieldsFrom: CAN_D1_UC_S1_NOD
+    AP_GROUPINFO("S4_NOD", 23,  AP_DroneCAN, serial.ports[3].node, 0),
+
+    // @Param: S3_IDX
+    // @DisplayName: Serial port number on remote CAN node
+    // @Description: Serial port number on remote CAN node
+    // @CopyFieldsFrom: CAN_D1_UC_S1_IDX
+    AP_GROUPINFO("S4_IDX", 24,  AP_DroneCAN, serial.ports[3].idx, 0),
+
+    // @Param: S3_BD
+    // @DisplayName: Serial baud rate on remote CAN node
+    // @Description: Serial baud rate on remote CAN node
+    // @CopyFieldsFrom: CAN_D1_UC_S1_BD
+    AP_GROUPINFO("S4_BD", 25,  AP_DroneCAN, serial.ports[3].state.baud, 57600),
+
+    // @Param: S3_PRO
+    // @DisplayName: Serial protocol of DroneCAN serial port
+    // @Description: Serial protocol of DroneCAN serial port
+    // @CopyFieldsFrom: CAN_D1_UC_S1_PRO
+    AP_GROUPINFO("S4_PRO", 26,  AP_DroneCAN, serial.ports[3].state.protocol, -1),
 #endif
 #endif // AP_DRONECAN_SERIAL_ENABLED
 
