@@ -416,9 +416,24 @@ void AR_WPNav_Clothoid::calculate_clothoid_parameters(const Location& prev_wp, c
         calc_clothoid_position(clothoid_angle, x, y);
 
         float omega =  M_PI_2 - clothoid_angle - (next_turn.fixed_rate_angle/2);
-        float b = y / cosf(omega);
+        float cos_omega = cosf(omega);
+        float b;
+        if (fabsf(cos_omega) < 1e-6f) {
+            // If cos(omega) is very close to zero, use a small value
+            b = y / 1e-6f;
+        } else {
+            b = y / cos_omega;
+        }
         float c = sqrtf((b*b)-(y*y));
-        float d = ((a+b)/sinf(fabsf(M_PI-next_turn.total_turn_angle)/2));
+        
+        float sin_turn = sinf(fabsf(M_PI-next_turn.total_turn_angle)/2);
+        float d;
+        if (fabsf(sin_turn) < 1e-6f) {
+            // If sin is very close to zero, use a large but finite value
+            d = 1e6f;
+        } else {
+            d = ((a+b)/sin_turn);
+        }
         turn_start_distance = d+x-c;
         
         
@@ -467,7 +482,13 @@ void AR_WPNav_Clothoid::calculate_clothoid_parameters(const Location& prev_wp, c
     //calculate constant turn start position
     float x , y;
     calc_clothoid_position(clothoid_angle, x, y);
-    float bearing_to_clothoid_point = tanf(y/x);
+    float bearing_to_clothoid_point;
+    if (fabsf(x) < 1e-6f) {
+        // If x is very close to zero, use a small value to avoid division by zero
+        bearing_to_clothoid_point = y >= 0 ? M_PI_2 : -M_PI_2;
+    } else {
+        bearing_to_clothoid_point = tanf(y/x);
+    }
     if (next_turn.total_turn_angle < 0) {
         bearing_to_clothoid_point = -bearing_to_clothoid_point;
     }
