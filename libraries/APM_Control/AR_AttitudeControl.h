@@ -39,6 +39,8 @@ public:
     // also sets steering_limit_left and steering_limit_right flags
     float get_steering_out_rate(float desired_rate, bool motor_limit_left, bool motor_limit_right, float dt);
 
+    bool set_measured_steering_angle(float angle);
+
     // get latest desired turn rate in rad/sec recorded during calls to get_steering_out_rate.  For reporting purposes only
     float get_desired_turn_rate() const;
 
@@ -150,6 +152,7 @@ private:
     AP_Float _pitch_limit_throttle_thresh;  // balancebot pitch limit throttle threshold (in the range 0 to 1.0)
     AP_Float _wheelbase;            // wheelbase in meters
     AP_Float _max_wheel_angle;      // maximum wheel angle in degrees
+    AP_Int8  _steering_valve_mode; // steering valve mode (0 = normal, 1 = vale_mode)
 
 
     AP_Float _throttle_accel_max;   // speed/throttle control acceleration (and deceleration) maximum in m/s/s.  0 to disable limits
@@ -167,6 +170,9 @@ private:
     float    _desired_turn_rate;    // desired turn rate (in radians/sec) either from external caller or from lateral acceleration controller
     bool     _steering_limit_left;  // true when the steering control has reached its left limit (e.g. motor has reached limits or accel or turn rate limits applied)
     bool     _steering_limit_right; // true when the steering control has reached its right limit (e.g. motor has reached limits or accel or turn rate limits applied)
+    float    _measured_steering_angle;
+    uint32_t _last_steering_measurement;
+
 
     // throttle control
     uint32_t _speed_last_ms;        // system time of last call to get_throttle_out_speed

@@ -567,6 +567,8 @@ const AP_Param::GroupInfo AR_AttitudeControl::var_info[] = {
     AP_GROUPINFO("_WB", 16, AR_AttitudeControl, _wheelbase, 4.5f),
 
     AP_GROUPINFO("_MAX_ANGLE", 17, AR_AttitudeControl, _max_wheel_angle, 45.0f),
+
+    AP_GROUPINFO("_STR_VALVE", 18, AR_AttitudeControl, _steering_valve_mode, 0),
     
     AP_GROUPEND
 };
@@ -636,6 +638,12 @@ float AR_AttitudeControl::get_turn_rate_from_heading(float heading_rad, float ra
     return desired_rate;
 }
 
+bool AR_AttitudeControl::set_measured_steering_angle(float angle){
+    _last_steering_measurement = AP_HAL::millis();
+    _measured_steering_angle = angle;
+    return true;
+}
+
 // return a steering servo output given a desired yaw rate in radians/sec.
 // positive yaw is to the right
 // return value is normally in range -1.0 to +1.0 but can be higher or lower
@@ -698,15 +706,25 @@ float AR_AttitudeControl::get_steering_out_rate(float desired_rate, bool motor_l
     }
 
     // update pid to calculate output to motors
-    float output = _steer_rate_pid.update_all(_desired_turn_rate, AP::ahrs().get_yaw_rate_earth(), dt, (motor_limit_left || motor_limit_right));
-    output += _steer_rate_pid.get_ff();
-
+    float output = 0 ;
     if (speed < 0.1){
         speed = 0.1;
     }
-
-    output = degrees(atanf(output*_wheelbase/speed));
-    output = output / _max_wheel_angle;
+    if (_steering_valve_mode == 1){
+        float _desired_steering_angle = degrees(atanf(_desired_turn_rate*_wheelbase/ speed));
+        output = _steer_rate_pid.update_all(_desired_steering_angle, _measured_steering_angle , dt, (motor_limit_left || motor_limit_right));
+        output += _steer_rate_pid.get_ff();
+        if (now - _last_steering_measurement > 100){
+            //show mavlink message
+            output = 0;
+        }
+    }
+    else{
+        output = _steer_rate_pid.update_all(_desired_turn_rate, AP::ahrs().get_yaw_rate_earth(), dt, (motor_limit_left || motor_limit_right));
+        output += _steer_rate_pid.get_ff();
+        output = degrees(atanf(output*_wheelbase/speed));
+        output = output / _max_wheel_angle;
+    }
 
     output = constrain_float(output, -1,1);
 

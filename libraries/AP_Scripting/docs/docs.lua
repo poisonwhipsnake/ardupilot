@@ -3794,6 +3794,11 @@ AR_AttitudeControl = {}
 ---@return number -- speed slew rate
 function AR_AttitudeControl:get_srate() end
 
+
+-- desc
+---@return boolean -- true if steering angle is set
+function AR_AttitudeControl:set_measured_steering_angle(angle) end
+
 -- copter position controller
 poscontrol = {}
 
