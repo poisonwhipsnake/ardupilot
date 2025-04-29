@@ -657,12 +657,16 @@ float AR_AttitudeControl::get_steering_out_rate(float desired_rate, bool motor_l
     _steering_limit_left = motor_limit_left;
     _steering_limit_right = motor_limit_right;
 
+
+    float desired_steering_angle = degrees(atanf(desired_rate*_wheelbase));
+
     // if not called recently, reset input filter and desired turn rate to actual turn rate (used for accel limiting)
     const uint32_t now = AP_HAL::millis();
     if ((_steer_turn_last_ms == 0) || ((now - _steer_turn_last_ms) > AR_ATTCONTROL_TIMEOUT_MS)) {
         _steer_rate_pid.reset_filter();
         _steer_rate_pid.reset_I();
-        _desired_turn_rate = AP::ahrs().get_yaw_rate_earth();
+        _desired_turn_rate = 0;//AP::ahrs().get_yaw_rate_earth();
+        _desired_steering_angle = 0;
     }
     _steer_turn_last_ms = now;
 
@@ -676,8 +680,17 @@ float AR_AttitudeControl::get_steering_out_rate(float desired_rate, bool motor_l
             _steering_limit_right = true;
         }
         desired_rate = constrain_float(desired_rate, _desired_turn_rate - change_max, _desired_turn_rate + change_max);
+
+        if (desired_steering_angle <= _desired_steering_angle - change_max){
+            _steering_limit_left = true;
+        }
+        if (desired_steering_angle >= _desired_steering_angle + change_max){
+            _steering_limit_right = true; 
+        }
+        desired_steering_angle = constrain_float( desired_steering_angle, _desired_steering_angle - change_max, _desired_steering_angle + change_max);
     }
     _desired_turn_rate = desired_rate;
+    _desired_steering_angle = desired_steering_angle;
 
     // rate limit desired turn rate
     if (is_positive(_steer_rate_max)) {
@@ -689,10 +702,21 @@ float AR_AttitudeControl::get_steering_out_rate(float desired_rate, bool motor_l
             _steering_limit_right = true;
         }
         _desired_turn_rate = constrain_float(_desired_turn_rate, -steer_rate_max_rad, steer_rate_max_rad);
+    
+        if (_desired_steering_angle <= -_steer_rate_max) {
+            _steering_limit_left = true;
+        }
+        if (_desired_steering_angle >= _steer_rate_max) {
+            _steering_limit_right = true;
+        }
+        _desired_steering_angle = constrain_float(_desired_steering_angle, -_steer_rate_max, _steer_rate_max);
+    
     }
 
     // G limit based on speed
-    float speed;
+    
+    //float speed;
+    /*
     if (get_forward_speed(speed)) {
         // do not limit to less than 1 deg/s
         const float turn_rate_max = MAX(get_turn_rate_from_lat_accel(get_turn_lat_accel_max(), fabsf(speed)), radians(1.0f));
@@ -704,14 +728,14 @@ float AR_AttitudeControl::get_steering_out_rate(float desired_rate, bool motor_l
         }
         _desired_turn_rate = constrain_float(_desired_turn_rate, -turn_rate_max, turn_rate_max);
     }
+        */
 
-    // update pid to calculate output to motors
+
     float output = 0 ;
-    if (speed < 0.1){
-        speed = 0.1;
-    }
+
     if (_steering_valve_mode == 1){
-        float _desired_steering_angle = degrees(atanf(_desired_turn_rate*_wheelbase/ speed));
+        //float _desired_steering_angle = degrees(atanf(_desired_turn_rate*_wheelbase/ speed));
+        
         output = _steer_rate_pid.update_all(_desired_steering_angle, _measured_steering_angle , dt, (motor_limit_left || motor_limit_right));
         output += _steer_rate_pid.get_ff();
         if (now - _last_steering_measurement > 100){
@@ -720,6 +744,18 @@ float AR_AttitudeControl::get_steering_out_rate(float desired_rate, bool motor_l
         }
     }
     else{
+
+        float speed;
+        if (!get_forward_speed(speed)) {
+            return 0;
+        }
+
+        // update pid to calculate output to motors
+
+        if (speed < 0.1){
+            speed = 0.1;
+        }
+
         output = _steer_rate_pid.update_all(_desired_turn_rate, AP::ahrs().get_yaw_rate_earth(), dt, (motor_limit_left || motor_limit_right));
         output += _steer_rate_pid.get_ff();
         output = degrees(atanf(output*_wheelbase/speed));

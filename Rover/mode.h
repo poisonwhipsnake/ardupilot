@@ -169,6 +169,8 @@ protected:
     // desired turn rate in radians/sec. Positive to the right.
     void calc_steering_from_turn_rate(float turn_rate);
 
+    void calc_steering_from_curvature(float curvature);
+
     // calculate steering angle given a desired lateral acceleration
     void calc_steering_from_lateral_acceleration(float lat_accel, bool reversed = false);
 

@@ -457,17 +457,19 @@ void Mode::navigate_to_waypoint()
         calc_steering_to_heading(desired_heading_cd, turn_rate);
     } else {
         // retrieve turn rate from waypoint controller
-        float desired_turn_rate_rads = g2.wp_nav.get_turn_rate_rads();
+        //float desired_turn_rate_rads = g2.wp_nav.get_turn_rate_rads();
+        float desired_turn_curvature = g2.wp_nav.get_target_curvature();
 
         // if simple avoidance is active at very low speed do not attempt to turn
 #if AP_AVOIDANCE_ENABLED
         if (g2.avoid.limits_active() && (fabsf(attitude_control.get_desired_speed()) <= attitude_control.get_stop_speed())) {
-            desired_turn_rate_rads = 0.0f;
+            desired_turn_curvature = 0.0f;
         }
 #endif
 
         // call turn rate steering controller
-        calc_steering_from_turn_rate(desired_turn_rate_rads);
+        //calc_steering_from_turn_rate(desired_turn_rate_rads);
+        calc_steering_from_curvature(desired_turn_curvature);
     }
 }
 
@@ -480,6 +482,15 @@ void Mode::calc_steering_from_turn_rate(float turn_rate)
                                                                       g2.motors.limit.steer_left,
                                                                       g2.motors.limit.steer_right,
                                                                       rover.G_Dt);
+    set_steering(steering_out * 4500.0f);
+}
+
+void Mode::calc_steering_from_curvature(float curvature)
+{
+    const float steering_out = attitude_control.get_steering_out_rate(curvature,
+        g2.motors.limit.steer_left,
+        g2.motors.limit.steer_right,
+        rover.G_Dt);
     set_steering(steering_out * 4500.0f);
 }
 
