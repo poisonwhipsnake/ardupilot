@@ -428,6 +428,8 @@ public:
     // FS GCS timeout trigger time
     AP_Float fs_gcs_timeout;
 
+    AP_Float fs_max_crosstrack_error;
+
     class ModeCircle mode_circle;
 };
 

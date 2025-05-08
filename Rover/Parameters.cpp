@@ -629,6 +629,8 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
     // @Path: mode_circle.cpp
     AP_SUBGROUPINFO(mode_circle, "CIRC", 57, ParametersG2, ModeCircle),
 
+    AP_GROUPINFO("FS_NAV_XTRACK", 58, ParametersG2, fs_max_crosstrack_error, 2.0f),
+
     AP_GROUPEND
 };
 

@@ -114,6 +114,7 @@ const AP_Scheduler::Task Rover::scheduler_tasks[] = {
     SCHED_TASK_CLASS(AP_Camera,           &rover.camera,           update,         50,  200,  78),
 #endif
     SCHED_TASK(gcs_failsafe_check,     10,    200,  81),
+    SCHED_TASK(navigation_check,        10,    200,  82),
     SCHED_TASK(fence_check,            10,    200,  84),
     SCHED_TASK(ekf_check,              10,    100,  87),
     SCHED_TASK_CLASS(ModeSmartRTL,        &rover.mode_smartrtl,    save_position,   3,  200,  90),
@@ -363,6 +364,24 @@ void Rover::gcs_failsafe_check(void)
 
     failsafe_trigger(FAILSAFE_EVENT_GCS, "GCS", do_failsafe);
 }
+
+void Rover::navigation_check(void)
+{
+    if (!rover.control_mode->is_autopilot_mode()) {
+        return;
+    }
+    float xtrack_error = control_mode->crosstrack_error();
+
+
+    if (fabsf(xtrack_error) > g2.fs_max_crosstrack_error) {
+        // we are outside the fence
+        failsafe_trigger(FAILSAFE_EVENT_NAVIGATION, "NAV", true);
+    } else {
+        failsafe_trigger(FAILSAFE_EVENT_NAVIGATION, "NAV", false);
+    }
+
+}
+
 
 #if HAL_LOGGING_ENABLED
 /*
