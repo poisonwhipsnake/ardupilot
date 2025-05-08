@@ -259,9 +259,13 @@ void AR_WPNav_Clothoid::update(float dt)
         }
     }
 
-    if(fabsf(_cross_track_error) < _xtrack_integrator_distance_limit){
+    if(fabsf(_cross_track_error) < _xtrack_integrator_distance_limit){//} && AP::ahrs().get_velocity_NED().length() > 0.2f) {
         _cross_track_integrator += -_cross_track_error * dt;
     }
+    else{
+        _cross_track_integrator = 0;
+    }
+    
     float target_curvature_control =  (-_cross_track_error*_pos_error_gain) + (_angle_error*_angle_gain) + (_cross_track_integrator*_pos_integrator_gain);
     
 
