@@ -651,6 +651,13 @@ void ModeAuto::exit_mission()
             return;
         }
         break;
+    case DoneBehaviour::DISSARM:
+        // disarm the vehicle
+        if (rover.arming.disarm(AP_Arming::Method::MISSIONEXIT)){
+            return;
+        }
+        break;
+        
     }
 
     start_stop();

@@ -302,6 +302,7 @@ public:
         LOITER    = 1,
         ACRO      = 2,
         MANUAL    = 3,
+        DISSARM   = 4,
     };
 
 protected:
