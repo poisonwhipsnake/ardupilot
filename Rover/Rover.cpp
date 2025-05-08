@@ -411,7 +411,7 @@ void Rover::steering_check(void)
 {
     if (g2.fs_steering_feedback_timeout > 0) {
         // check for steering failsafe
-        float time_since_update = (millis() - g2.attitude_control.get_last_steering_update_time()) * 0.000001f;
+        float time_since_update = (millis() - g2.attitude_control.get_last_steering_update_time()) * 0.001f;
 
         if ( time_since_update > g2.fs_steering_feedback_timeout) {
             failsafe_trigger(FAILSAFE_EVENT_STEERING, "STR", true);
