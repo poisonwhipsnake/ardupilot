@@ -9,6 +9,10 @@
 #define FAILSAFE_EVENT_THROTTLE (1<<0)
 #define FAILSAFE_EVENT_GCS      (1<<1)
 #define FAILSAFE_EVENT_NAVIGATION (1<<2)
+#define FAILSAFE_EVENT_GPS      (1<<3)
+#define FAILSAFE_EVENT_STEERING (1<<4)
+#define FAILSAFE_EVENT_CAN_NODE_LOST (1<<5)
+
 
 //  Logging parameters - only 32 messages are available to the vehicle here.
 enum LoggingParameters {

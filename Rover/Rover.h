@@ -290,6 +290,9 @@ private:
     void ahrs_update();
     void gcs_failsafe_check(void);
     void navigation_check(void);
+    void gps_check(void);
+    void steering_check(void);
+    void can_node_check(void);
     void update_logging1(void);
     void update_logging2(void);
     void one_second_loop(void);

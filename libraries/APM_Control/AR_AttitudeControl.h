@@ -41,6 +41,8 @@ public:
 
     bool set_measured_steering_angle(float angle);
 
+    uint32_t get_last_steering_update_time() const { return _last_steering_measurement; }
+
     // get latest desired turn rate in rad/sec recorded during calls to get_steering_out_rate.  For reporting purposes only
     float get_desired_turn_rate() const;
 

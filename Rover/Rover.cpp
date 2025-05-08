@@ -114,8 +114,12 @@ const AP_Scheduler::Task Rover::scheduler_tasks[] = {
     SCHED_TASK_CLASS(AP_Camera,           &rover.camera,           update,         50,  200,  78),
 #endif
     SCHED_TASK(gcs_failsafe_check,     10,    200,  81),
+    
     SCHED_TASK(navigation_check,        10,    200,  82),
+    SCHED_TASK(gps_check,               10,    200,  83),
     SCHED_TASK(fence_check,            10,    200,  84),
+    SCHED_TASK(steering_check,          10,    200,  85),
+    //SCHED_TASK(can_node_check,          10,    200,  86),
     SCHED_TASK(ekf_check,              10,    100,  87),
     SCHED_TASK_CLASS(ModeSmartRTL,        &rover.mode_smartrtl,    save_position,   3,  200,  90),
     SCHED_TASK(one_second_loop,         1,   1500,  96),
@@ -380,6 +384,41 @@ void Rover::navigation_check(void)
         failsafe_trigger(FAILSAFE_EVENT_NAVIGATION, "NAV", false);
     }
 
+}
+
+void Rover::gps_check(void)
+{
+    if (g2.fs_gps_min_status >0) {
+        // check for GPS failsafe
+
+        int32_t lowest_gps_status = 10;
+
+        for (int i = 0; i < gps.num_sensors(); i++) {
+            if (gps.status(i) < lowest_gps_status) {
+                lowest_gps_status = gps.status(i);
+            }
+        }
+
+        if (gps.status() < g2.fs_gps_min_status) {
+            failsafe_trigger(FAILSAFE_EVENT_GPS, "GPS", true);
+        } else {
+            failsafe_trigger(FAILSAFE_EVENT_GPS, "GPS", false);
+        }
+    }
+}
+
+void Rover::steering_check(void)
+{
+    if (g2.fs_steering_feedback_timeout > 0) {
+        // check for steering failsafe
+        float time_since_update = (millis() - g2.attitude_control.get_last_steering_update_time()) * 0.000001f;
+
+        if ( time_since_update > g2.fs_steering_feedback_timeout) {
+            failsafe_trigger(FAILSAFE_EVENT_STEERING, "STR", true);
+        } else {
+            failsafe_trigger(FAILSAFE_EVENT_STEERING, "STR", false);
+        }
+    }
 }
 
 

@@ -430,6 +430,12 @@ public:
 
     AP_Float fs_max_crosstrack_error;
 
+    AP_Int16 fs_gps_min_status;
+    
+    AP_Float fs_steering_feedback_timeout;
+
+    AP_Float fs_can_node_timeout;
+
     class ModeCircle mode_circle;
 };
 

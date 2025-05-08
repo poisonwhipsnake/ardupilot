@@ -631,6 +631,13 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
 
     AP_GROUPINFO("FS_NAV_XTRACK", 58, ParametersG2, fs_max_crosstrack_error, 2.0f),
 
+    AP_GROUPINFO("FS_STR_TIMEOUT", 59, ParametersG2, fs_steering_feedback_timeout, 0.2f),
+
+    AP_GROUPINFO("FS_GPS_MIN_STAT", 60 , ParametersG2, fs_gps_min_status, AP_GPS::GPS_Status::GPS_OK_FIX_3D_RTK_FIXED),
+
+    AP_GROUPINFO("FS_CAN_TIMEOUT", 61, ParametersG2, fs_can_node_timeout, 5.0f),
+
+
     AP_GROUPEND
 };
 
