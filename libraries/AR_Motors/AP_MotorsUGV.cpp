@@ -20,6 +20,8 @@
 
 #define SERVO_MAX 4500  // This value represents 45 degrees and is just an arbitrary representation of servo max travel.
 
+#define DISABLE_ARMING_CHECK
+
 extern const AP_HAL::HAL& hal;
 
 // singleton instance
@@ -488,6 +490,9 @@ bool AP_MotorsUGV::output_test_pwm(motor_test_order motor_seq, float pwm)
 //  returns true if checks pass, false if they fail.  report should be true to send text messages to GCS
 bool AP_MotorsUGV::pre_arm_check(bool report) const
 {
+#ifdef DISABLE_ARMING_CHECK
+    return true;
+#else
     const bool have_throttle = SRV_Channels::function_assigned(SRV_Channel::k_throttle);
     const bool have_throttle_left = SRV_Channels::function_assigned(SRV_Channel::k_throttleLeft);
     const bool have_throttle_right = SRV_Channels::function_assigned(SRV_Channel::k_throttleRight);
@@ -559,6 +564,7 @@ bool AP_MotorsUGV::pre_arm_check(bool report) const
 #endif
 
     return true;
+#endif
 }
 
 // sanity check parameters
