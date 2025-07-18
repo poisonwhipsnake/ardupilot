@@ -648,7 +648,7 @@ bool AR_AttitudeControl::set_measured_steering_angle(float angle){
 // positive yaw is to the right
 // return value is normally in range -1.0 to +1.0 but can be higher or lower
 // also sets steering_limit_left and steering_limit_right flags
-float AR_AttitudeControl::get_steering_out_rate(float desired_rate, bool motor_limit_left, bool motor_limit_right, float dt)
+float AR_AttitudeControl::get_steering_out_rate(float desired_target, bool motor_limit_left, bool motor_limit_right, float dt, bool curvature_mode)
 {
     // sanity check dt
     dt = constrain_float(dt, 0.0f, 1.0f);
@@ -658,7 +658,8 @@ float AR_AttitudeControl::get_steering_out_rate(float desired_rate, bool motor_l
     _steering_limit_right = motor_limit_right;
 
 
-    float desired_steering_angle = degrees(atanf(desired_rate*_wheelbase));
+    float desired_steering_angle = degrees(atanf(desired_target*_wheelbase));
+    float desired_turn_rate = desired_target;
 
     // if not called recently, reset input filter and desired turn rate to actual turn rate (used for accel limiting)
     const uint32_t now = AP_HAL::millis();
@@ -673,23 +674,23 @@ float AR_AttitudeControl::get_steering_out_rate(float desired_rate, bool motor_l
     // acceleration limit desired turn rate
     if (is_positive(_steer_accel_max)) {
         const float change_max = radians(_steer_accel_max) * dt;
-        if (desired_rate <= _desired_turn_rate - change_max) {
+        if (desired_turn_rate <= _desired_turn_rate - change_max) {
             _steering_limit_left = true;
         }
-        if (desired_rate >= _desired_turn_rate + change_max) {
+        if (desired_turn_rate >= _desired_turn_rate + change_max) {
             _steering_limit_right = true;
         }
-        desired_rate = constrain_float(desired_rate, _desired_turn_rate - change_max, _desired_turn_rate + change_max);
+        desired_turn_rate = constrain_float(desired_turn_rate, _desired_turn_rate - change_max, _desired_turn_rate + change_max);
 
-        if (desired_steering_angle <= _desired_steering_angle - change_max){
+        if (desired_steering_angle <= _desired_steering_angle - _steer_accel_max){
             _steering_limit_left = true;
         }
-        if (desired_steering_angle >= _desired_steering_angle + change_max){
+        if (desired_steering_angle >= _desired_steering_angle + _steer_accel_max){
             _steering_limit_right = true; 
         }
-        desired_steering_angle = constrain_float( desired_steering_angle, _desired_steering_angle - change_max, _desired_steering_angle + change_max);
+        desired_steering_angle = constrain_float( desired_steering_angle, _desired_steering_angle - _steer_accel_max, _desired_steering_angle + _steer_accel_max);
     }
-    _desired_turn_rate = desired_rate;
+    _desired_turn_rate = desired_turn_rate;
     _desired_steering_angle = desired_steering_angle;
 
     // rate limit desired turn rate
@@ -733,23 +734,7 @@ float AR_AttitudeControl::get_steering_out_rate(float desired_rate, bool motor_l
 
     float output = 0 ;
 
-    if (_steering_valve_mode == 1){
-        //float _desired_steering_angle = degrees(atanf(_desired_turn_rate*_wheelbase/ speed));
-        
-        output = _steer_rate_pid.update_all(_desired_steering_angle, _measured_steering_angle , dt, (motor_limit_left || motor_limit_right));
-        output += _steer_rate_pid.get_ff();
-        if (now - _last_steering_measurement > 100){
-            //show mavlink message
-            output = 0;
-        }
-    }
-    else if (_steering_valve_mode == 2){
-        // use the desired turn rate to calculate the steering angle
-        output = _desired_steering_angle;
-        output = output / _max_wheel_angle;
-    }
-    else{
-
+    if (!curvature_mode){
         float speed;
         if (!get_forward_speed(speed)) {
             return 0;
@@ -761,9 +746,23 @@ float AR_AttitudeControl::get_steering_out_rate(float desired_rate, bool motor_l
             speed = 0.1;
         }
 
-        output = _steer_rate_pid.update_all(_desired_turn_rate, AP::ahrs().get_yaw_rate_earth(), dt, (motor_limit_left || motor_limit_right));
+        _desired_steering_angle= degrees(atanf(_desired_turn_rate*_wheelbase/speed));
+    }
+
+   
+    if (_steering_valve_mode == 1){
+        //float _desired_steering_angle = degrees(atanf(_desired_turn_rate*_wheelbase/ speed));
+        
+        output = _steer_rate_pid.update_all(_desired_steering_angle, _measured_steering_angle , dt, (motor_limit_left || motor_limit_right));
         output += _steer_rate_pid.get_ff();
-        output = degrees(atanf(output*_wheelbase/speed));
+        if (now - _last_steering_measurement > 100){
+            //show mavlink message
+            output = 0;
+        }
+    }
+    else {
+        // use the desired turn rate to calculate the steering angle
+        output = degrees(_desired_steering_angle);
         output = output / _max_wheel_angle;
     }
 

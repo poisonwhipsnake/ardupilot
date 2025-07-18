@@ -490,7 +490,7 @@ void Mode::calc_steering_from_curvature(float curvature)
     const float steering_out = attitude_control.get_steering_out_rate(curvature,
         g2.motors.limit.steer_left,
         g2.motors.limit.steer_right,
-        rover.G_Dt);
+        rover.G_Dt, true);
     set_steering(steering_out * 4500.0f);
 }
 

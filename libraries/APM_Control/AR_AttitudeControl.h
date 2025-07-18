@@ -37,7 +37,7 @@ public:
     // positive yaw is to the right
     // return value is normally in range -1.0 to +1.0 but can be higher or lower
     // also sets steering_limit_left and steering_limit_right flags
-    float get_steering_out_rate(float desired_rate, bool motor_limit_left, bool motor_limit_right, float dt);
+    float get_steering_out_rate(float desired_rate, bool motor_limit_left, bool motor_limit_right, float dt, bool curvature_mode = false);
 
     bool set_measured_steering_angle(float angle);
 
