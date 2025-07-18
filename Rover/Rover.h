@@ -203,6 +203,8 @@ private:
         bool ekf;
     } failsafe;
 
+    uint32_t last_failsafe_message_ms; // last time we updated the failsafe state
+
     // true if we have a position estimate from AHRS
     bool have_position;
 

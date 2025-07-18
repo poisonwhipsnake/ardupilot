@@ -527,21 +527,30 @@ void Rover::one_second_loop(void)
 
 void Rover::update_failsafe_messages(void)
 {
+    if (  millis() < last_failsafe_message_ms + 10000 ) {
+        // only update failsafe messages once per second
+        return;
+    }
     // update the failsafe messages
     if (failsafe.bits & FAILSAFE_EVENT_GCS) {
-        gcs().send_text(MAV_SEVERITY_WARNING, "GCS Failsafe triggered");
+        gcs().send_text(MAV_SEVERITY_WARNING, "GCS Failsafe Reason");
+        last_failsafe_message_ms = millis();
     }
     if (failsafe.bits & FAILSAFE_EVENT_GPS) {
-        gcs().send_text(MAV_SEVERITY_WARNING, "GPS Failsafe triggered");
+        gcs().send_text(MAV_SEVERITY_WARNING, "GPS Failsafe Reason");
+        last_failsafe_message_ms = millis();
     } 
     if (failsafe.bits & FAILSAFE_EVENT_NAVIGATION) {
-        gcs().send_text(MAV_SEVERITY_WARNING, "Navigation Failsafe triggered");
+        gcs().send_text(MAV_SEVERITY_WARNING, "Navigation Failsafe Reason");
+        last_failsafe_message_ms = millis();
     }
     if (failsafe.bits & FAILSAFE_EVENT_STEERING) {
-        gcs().send_text(MAV_SEVERITY_WARNING, "Steering Failsafe triggered");
+        gcs().send_text(MAV_SEVERITY_WARNING, "Steering Failsafe Reason");
+        last_failsafe_message_ms = millis();
     }
     if (failsafe.bits & FAILSAFE_EVENT_CAN_NODE_LOST) {
-        gcs().send_text(MAV_SEVERITY_WARNING, "Can Node Failsafe triggered");
+        gcs().send_text(MAV_SEVERITY_WARNING, "Can Node Failsafe Reason");
+        last_failsafe_message_ms = millis();
     }
 
 }
