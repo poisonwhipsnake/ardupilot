@@ -508,6 +508,8 @@ void Rover::one_second_loop(void)
         update_home();
     }
 
+    update_failsafe_messages();
+
     // need to set "likely flying" when armed to allow for compass
     // learning to run
     set_likely_flying(hal.util->get_soft_armed());
@@ -521,6 +523,27 @@ void Rover::one_second_loop(void)
     // Update stats "flying" time
     AP::stats()->set_flying(g2.motors.active());
 #endif
+}
+
+void Rover::update_failsafe_messages(void)
+{
+    // update the failsafe messages
+    if (failsafe.bits & FAILSAFE_EVENT_GCS) {
+        gcs().send_text(MAV_SEVERITY_WARNING, "GCS Failsafe triggered");
+    }
+    if (failsafe.bits & FAILSAFE_EVENT_GPS) {
+        gcs().send_text(MAV_SEVERITY_WARNING, "GPS Failsafe triggered");
+    } 
+    if (failsafe.bits & FAILSAFE_EVENT_NAVIGATION) {
+        gcs().send_text(MAV_SEVERITY_WARNING, "Navigation Failsafe triggered");
+    }
+    if (failsafe.bits & FAILSAFE_EVENT_STEERING) {
+        gcs().send_text(MAV_SEVERITY_WARNING, "Steering Failsafe triggered");
+    }
+    if (failsafe.bits & FAILSAFE_EVENT_CAN_NODE_LOST) {
+        gcs().send_text(MAV_SEVERITY_WARNING, "Crash Failsafe triggered");
+    }
+
 }
 
 void Rover::update_current_mode(void)
