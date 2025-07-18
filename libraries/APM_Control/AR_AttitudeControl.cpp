@@ -743,6 +743,11 @@ float AR_AttitudeControl::get_steering_out_rate(float desired_rate, bool motor_l
             output = 0;
         }
     }
+    else if (_steering_valve_mode == 2){
+        // use the desired turn rate to calculate the steering angle
+        output = _desired_steering_angle;
+        output = output / _max_wheel_angle;
+    }
     else{
 
         float speed;
