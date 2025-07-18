@@ -541,7 +541,7 @@ void Rover::update_failsafe_messages(void)
         gcs().send_text(MAV_SEVERITY_WARNING, "Steering Failsafe triggered");
     }
     if (failsafe.bits & FAILSAFE_EVENT_CAN_NODE_LOST) {
-        gcs().send_text(MAV_SEVERITY_WARNING, "Crash Failsafe triggered");
+        gcs().send_text(MAV_SEVERITY_WARNING, "Can Node Failsafe triggered");
     }
 
 }
