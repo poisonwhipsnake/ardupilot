@@ -508,6 +508,8 @@ void Rover::one_second_loop(void)
         update_home();
     }
 
+    update_failsafe_messages();
+
     // need to set "likely flying" when armed to allow for compass
     // learning to run
     set_likely_flying(hal.util->get_soft_armed());
@@ -521,6 +523,36 @@ void Rover::one_second_loop(void)
     // Update stats "flying" time
     AP::stats()->set_flying(g2.motors.active());
 #endif
+}
+
+void Rover::update_failsafe_messages(void)
+{
+    if (  millis() < last_failsafe_message_ms + 10000 ) {
+        // only update failsafe messages once per second
+        return;
+    }
+    // update the failsafe messages
+    if (failsafe.bits & FAILSAFE_EVENT_GCS) {
+        gcs().send_text(MAV_SEVERITY_WARNING, "GCS Failsafe Reason");
+        last_failsafe_message_ms = millis();
+    }
+    if (failsafe.bits & FAILSAFE_EVENT_GPS) {
+        gcs().send_text(MAV_SEVERITY_WARNING, "GPS Failsafe Reason");
+        last_failsafe_message_ms = millis();
+    } 
+    if (failsafe.bits & FAILSAFE_EVENT_NAVIGATION) {
+        gcs().send_text(MAV_SEVERITY_WARNING, "Navigation Failsafe Reason");
+        last_failsafe_message_ms = millis();
+    }
+    if (failsafe.bits & FAILSAFE_EVENT_STEERING) {
+        gcs().send_text(MAV_SEVERITY_WARNING, "Steering Failsafe Reason");
+        last_failsafe_message_ms = millis();
+    }
+    if (failsafe.bits & FAILSAFE_EVENT_CAN_NODE_LOST) {
+        gcs().send_text(MAV_SEVERITY_WARNING, "Can Node Failsafe Reason");
+        last_failsafe_message_ms = millis();
+    }
+
 }
 
 void Rover::update_current_mode(void)

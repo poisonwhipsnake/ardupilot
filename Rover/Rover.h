@@ -203,6 +203,8 @@ private:
         bool ekf;
     } failsafe;
 
+    uint32_t last_failsafe_message_ms; // last time we updated the failsafe state
+
     // true if we have a position estimate from AHRS
     bool have_position;
 
@@ -297,6 +299,7 @@ private:
     void update_logging2(void);
     void one_second_loop(void);
     void update_current_mode(void);
+    void update_failsafe_messages(void);
 
     // balance_bot.cpp
     void balancebot_pitch_control(float &throttle);
