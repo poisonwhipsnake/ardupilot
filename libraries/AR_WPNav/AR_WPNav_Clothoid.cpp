@@ -439,13 +439,13 @@ void AR_WPNav_Clothoid::calculate_clothoid_parameters(const Location& prev_wp, c
         next_turn.use_fixed_radius = false;
         next_turn.entry_angle = next_turn.total_turn_angle * 0.5f;
         next_turn.exit_angle = next_turn.total_turn_angle * 0.5f;
-        clothoid_angle = next_turn.total_turn_angle * 0.5f;
+        clothoid_angle = fabsf(next_turn.total_turn_angle * 0.5f);
         next_turn.use_fixed_radius = false;
 
-        next_turn.clothoid_length = sqrtf(2.0f * fabsf(clothoid_angle) / _clothoid_rate);
+        next_turn.clothoid_length = sqrtf(2.0f * clothoid_angle / _clothoid_rate);
 
         float x , y;
-        calc_clothoid_position(fabsf(clothoid_angle), x, y);
+        calc_clothoid_position(clothoid_angle, x, y);
         float omega =  M_PI_2 - clothoid_angle;
         float b = y / cosf(omega);
         float c = sqrtf((b*b)-(y*y));
