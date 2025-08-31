@@ -446,9 +446,11 @@ void AR_WPNav_Clothoid::calculate_clothoid_parameters(const Location& prev_wp, c
 
         float x , y;
         calc_clothoid_position(fabsf(clothoid_angle), x, y);
-        turn_start_distance = x;
-
-
+        float omega =  M_PI_2 - clothoid_angle;
+        float b = y / cosf(omega);
+        float c = sqrtf((b*b)-(y*y));
+        float d = (b/sinf(fabsf(M_PI-next_turn.total_turn_angle)/2));
+        turn_start_distance = d+x-c;
     }
 
     // calculate clothoid lengths
