@@ -382,18 +382,18 @@ void AR_WPNav_Clothoid::calculate_clothoid_parameters(const Location& prev_wp, c
     
     current_turn = next_turn;
     
+    Vector2f first_vector = _prev_wp.get_distance_NE(_curr_wp);
+    _current_track_heading = first_vector.angle();
+
     if (!_next_wp.initialised()) {
         return;
     }
 
-
-    Vector2f first_vector = _prev_wp.get_distance_NE(_curr_wp);
     Vector2f next_vector = _curr_wp.get_distance_NE(_next_wp);
 
 
     // calculate total turn angle
     next_turn.total_turn_angle = wrap_PI(next_vector.angle() - first_vector.angle());
-    _current_track_heading = first_vector.angle();
 
 
     // calculate maximum curvature (at end of entry spiral/start of constant turn)
