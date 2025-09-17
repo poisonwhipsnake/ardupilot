@@ -105,9 +105,6 @@ void AR_WPNav_Clothoid::update(float dt)
     float desired_speed = _reversed ? -_speed_max : _speed_max;
     float target_curvature = 0;
 
-    
-
-
     switch (_clothoid_state) {
         case ClothoidState::ENTRY_SPIRAL: {
             // calculate heading change from start of entry spiral
@@ -361,8 +358,6 @@ bool AR_WPNav_Clothoid::reached_destination() const
 // calculate clothoid parameters for the current path segment
 void AR_WPNav_Clothoid::calculate_clothoid_parameters(const Location& prev_wp, const Location& curr_wp, const Location& next_wp, bool reset_state)
 {
-   
-    
     _prev_wp = prev_wp;
     _curr_wp = curr_wp;
     _next_wp = next_wp;
@@ -387,6 +382,10 @@ void AR_WPNav_Clothoid::calculate_clothoid_parameters(const Location& prev_wp, c
     
     current_turn = next_turn;
     
+    if (!_next_wp.initialised()) {
+        return;
+    }
+
 
     Vector2f first_vector = _prev_wp.get_distance_NE(_curr_wp);
     Vector2f next_vector = _curr_wp.get_distance_NE(_next_wp);
@@ -504,11 +503,8 @@ void AR_WPNav_Clothoid::calculate_clothoid_parameters(const Location& prev_wp, c
     next_turn.turn_centre = next_turn.constant_turn_start;
     next_turn.turn_centre.offset(turn_center.x, turn_center.y);
 
-    _cross_track_error = calc_crosstrack_error_straight(current_loc);
-    _angle_error = wrap_PI(_current_track_heading - AP::ahrs().get_yaw());
-
-
-
+    // _cross_track_error = calc_crosstrack_error_straight(current_loc);
+    // _angle_error = wrap_PI(_current_track_heading - AP::ahrs().get_yaw());
 }
 
 // calculate position on clothoid given heading change from start
@@ -632,38 +628,6 @@ void AR_WPNav_Clothoid::update_clothoid_distance_and_bearing()
     }
     Vector2f current_pos_ned(current_pos.x, current_pos.y);
 
-    // calculate bearing and crosstrack error based on current navigation segment
-    /*switch (_clothoid_state) {
-        case ClothoidState::ENTRY_SPIRAL: {
-            // calculate position relative to entry spiral start
-            Vector2f rel_pos = current_pos_ned - current_turn.entry_spiral_start_ned;
-            float heading_change = atan2f(rel_pos.y, rel_pos.x) - current_turn.entry_spiral_heading;
-            _wp_bearing_cd = degrees(wrap_PI(current_turn.entry_spiral_heading + heading_change)) * 100;
-            break;
-        }
-            
-        case ClothoidState::CONSTANT_TURN: {
-            // calculate position relative to constant turn start
-            Vector2f rel_pos = current_pos_ned - current_turn.constant_turn_start_ned;
-            float heading_change = atan2f(rel_pos.y, rel_pos.x) - current_turn.constant_turn_heading;
-            _wp_bearing_cd = degrees(wrap_PI(current_turn.constant_turn_heading + heading_change)) * 100;
-            break;
-        }
-            
-        case ClothoidState::EXIT_SPIRAL: {
-            // calculate position relative to exit spiral start
-            Vector2f rel_pos = current_pos_ned - current_turn.exit_spiral_start_ned;
-            float heading_change = atan2f(rel_pos.y, rel_pos.x) - current_turn.exit_spiral_heading;
-            _wp_bearing_cd = degrees(wrap_PI(current_turn.exit_spiral_heading + heading_change)) * 100;
-            break;
-        }
-            
-        case ClothoidState::STRAIGHT:
-        default:
-            _wp_bearing_cd = current_loc.get_bearing_to(_destination);
-            break;
-    }
-            */
     _wp_bearing_cd = current_loc.get_bearing_to(_destination);
 
     _desired_heading_cd = ((float)_clothoid_state);
