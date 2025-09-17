@@ -251,7 +251,7 @@ void AR_WPNav_Clothoid::update(float dt)
         case ClothoidState::STRAIGHT:
         default: {
 
-            _cross_track_error = calc_crosstrack_error_strait(current_loc);
+            _cross_track_error = calc_crosstrack_error_straight(current_loc);
             _angle_error = wrap_PI(_current_track_heading - current_heading);
             target_curvature = 0;
             break;
@@ -303,7 +303,7 @@ void AR_WPNav_Clothoid::update(float dt)
 }
 
 // calculate the crosstrack error
-float AR_WPNav_Clothoid::calc_crosstrack_error_strait(const Location& current_loc) const
+float AR_WPNav_Clothoid::calc_crosstrack_error_straight(const Location& current_loc) const
 {
     // calculate the NE position of destination relative to origin
     Vector2f dest_from_origin = _prev_wp.get_distance_NE(_curr_wp);
@@ -504,7 +504,7 @@ void AR_WPNav_Clothoid::calculate_clothoid_parameters(const Location& prev_wp, c
     next_turn.turn_centre = next_turn.constant_turn_start;
     next_turn.turn_centre.offset(turn_center.x, turn_center.y);
 
-    _cross_track_error = calc_crosstrack_error_strait(current_loc);
+    _cross_track_error = calc_crosstrack_error_straight(current_loc);
     _angle_error = wrap_PI(_current_track_heading - AP::ahrs().get_yaw());
 
 

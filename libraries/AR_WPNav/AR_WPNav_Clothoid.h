@@ -79,7 +79,7 @@ private:
     // calculate clothoid parameters for the current path segment
     void calculate_clothoid_parameters();
 
-    float calc_crosstrack_error_strait(const Location& current_loc) const;
+    float calc_crosstrack_error_straight(const Location& current_loc) const;
 
     // update distance and bearing from vehicle's current position to destination
     void update_clothoid_distance_and_bearing();
