@@ -408,22 +408,13 @@ void AR_WPNav_Clothoid::calculate_clothoid_parameters(const Location& prev_wp, c
 
     next_turn.fixed_rate_angle = 0;
 
+    float a, omega;
     // determine if we need a constant radius turn
     if (fabsf(next_turn.total_turn_angle) > 2.0f * clothoid_angle) {
         // large turn - use entry spiral, constant radius and exit spiral
 
         next_turn.use_fixed_radius = true;
         next_turn.fixed_rate_angle = fabsf(next_turn.total_turn_angle) - (2.0f * clothoid_angle);
-        float a = _turn_radius* sinf(next_turn.fixed_rate_angle/2);
-        float x , y;
-        calc_clothoid_position(clothoid_angle, x, y);
-
-        float omega =  M_PI_2 - clothoid_angle - (next_turn.fixed_rate_angle/2);
-        float b = y / cosf(omega);
-        float c = sqrtf((b*b)-(y*y));
-        float d = ((a+b)/sinf(fabsf(M_PI-next_turn.total_turn_angle)/2));
-        turn_start_distance = d+x-c;
-        
         
         next_turn.clothoid_length = curvature_max/ _clothoid_rate;
         
@@ -433,31 +424,32 @@ void AR_WPNav_Clothoid::calculate_clothoid_parameters(const Location& prev_wp, c
         next_turn.entry_angle = clothoid_angle;
         next_turn.exit_angle = next_turn.total_turn_angle - clothoid_angle;
 
+        a = _turn_radius * sinf(next_turn.fixed_rate_angle / 2);
+        omega = M_PI_2 - clothoid_angle - (next_turn.fixed_rate_angle / 2);
     } else {
         // review and update this section
         next_turn.use_fixed_radius = false;
         next_turn.entry_angle = next_turn.total_turn_angle * 0.5f;
         next_turn.exit_angle = next_turn.total_turn_angle * 0.5f;
         clothoid_angle = fabsf(next_turn.total_turn_angle * 0.5f);
-        next_turn.use_fixed_radius = false;
-
         next_turn.clothoid_length = sqrtf(2.0f * clothoid_angle / _clothoid_rate);
 
-        float x , y;
-        calc_clothoid_position(clothoid_angle, x, y);
-        float omega =  M_PI_2 - clothoid_angle;
-        float b = y / cosf(omega);
-        float c = sqrtf((b*b)-(y*y));
-        float d = (b/sinf(fabsf(M_PI-next_turn.total_turn_angle)/2));
-        turn_start_distance = d+x-c;
+        a = 0;
+        omega =  M_PI_2 - clothoid_angle;
     }
 
-    // calculate clothoid lengths
-    //_clothoid_entry_length = sqrtf(2.0f * fabsf(_entry_angle) / _clothoid_rate);
-    //_clothoid_exit_length = sqrtf(2.0f * fabsf(_exit_angle) / _clothoid_rate);
-
-    // calculate straight segment length
-    //next_turn.straight_length = prev_wp.get_distance(curr_wp);
+    float x, y;
+    calc_clothoid_position(clothoid_angle, x, y);
+    float cos_omega = cosf(omega);
+    float b;
+    if (fabsf(cos_omega) < 1e-6f) {
+        b = y / 1e-6f;
+    } else {
+        b = y / cos_omega;
+    }    
+    float c = sqrtf((b * b) - (y * y));
+    float d = ((a + b) / sinf(fabsf(M_PI - next_turn.total_turn_angle) / 2));
+    turn_start_distance = d + x - c;
 
     // store headings
     next_turn.entry_spiral_heading = radians(_prev_wp.get_bearing_to(_curr_wp) * 0.01f);
@@ -470,8 +462,6 @@ void AR_WPNav_Clothoid::calculate_clothoid_parameters(const Location& prev_wp, c
     next_turn.entry_spiral_start.offset_bearing(degrees(next_turn.entry_spiral_heading), -turn_start_distance);
     
     //calculate constant turn start position
-    float x , y;
-    calc_clothoid_position(clothoid_angle, x, y);
     float bearing_to_clothoid_point = tanf(y/x);
     if (next_turn.total_turn_angle < 0) {
         bearing_to_clothoid_point = -bearing_to_clothoid_point;
