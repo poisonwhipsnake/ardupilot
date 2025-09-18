@@ -131,6 +131,7 @@ private:
     float _current_track_heading;     // heading of current waypoint from previous waypoint
     float _cross_track_integrator;    // integral of cross track error
     float _turn_speed;                // speed at which to turn in m/s
+    float _turn_radius;               // turn radius in meters
 
     float distance_along_segment;
 

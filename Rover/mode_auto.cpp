@@ -761,7 +761,8 @@ bool ModeAuto::do_nav_wp(const AP_Mission::Mission_Command& cmd, bool always_sto
     cmdloc.sanitize(rover.current_loc);
 
     uint16_t clothoid_params = cmd.p1;
-
+    loiter_duration = 0;
+    loiter_start_time = 0;
     bool waypoint_changed = cmd.index != prev_nav_cmd.index;
 
     bool next_command_in_order = cmd.index == anticipated_curr_nav_cmd.index;
