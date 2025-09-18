@@ -68,6 +68,7 @@ const AP_Param::GroupInfo AR_WPNav_Clothoid::var_info[] = {
 
     AP_GROUPINFO("SPEED", 7, AR_WPNav, _speed_max, 3.0),
 
+    AP_GROUPINFO("END_DIST", 8, AR_WPNav_Clothoid, _end_distance, 5.0),
 
     AP_GROUPEND
 };
@@ -398,7 +399,7 @@ void AR_WPNav_Clothoid::calculate_clothoid_parameters(const Location& prev_wp, c
 
     if (!_next_wp.initialised()) {
         // Complete the mission at _radius metres from the final waypoint
-        turn_start_distance = _radius;
+        turn_start_distance = _end_distance;
         return;
     }
 
