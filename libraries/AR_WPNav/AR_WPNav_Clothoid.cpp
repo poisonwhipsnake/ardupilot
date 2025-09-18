@@ -350,6 +350,17 @@ bool AR_WPNav_Clothoid::reached_destination() const
         if (_distance_to_destination <= turn_start_distance){
             return true;
         }
+        float transition_heading = _destination.get_bearing_to(_prev_wp) * 0.01f;
+        Location transition_point = _destination;
+        transition_point.offset_bearing(transition_heading, turn_start_distance);
+        // If we are slightly off track, need to tick off waypoint based on transition point
+        if (current_loc.past_interval_finish_line(_prev_wp, transition_point)){
+            return true;
+        }
+        // Ensure we tick off waypoint if we end up past the destination
+        if (current_loc.past_interval_finish_line(_prev_wp, _destination)){
+            return true;
+        }
     }
   
     return false;
@@ -386,6 +397,8 @@ void AR_WPNav_Clothoid::calculate_clothoid_parameters(const Location& prev_wp, c
     _current_track_heading = first_vector.angle();
 
     if (!_next_wp.initialised()) {
+        // Complete the mission at _radius metres from the final waypoint
+        turn_start_distance = _radius;
         return;
     }
 
