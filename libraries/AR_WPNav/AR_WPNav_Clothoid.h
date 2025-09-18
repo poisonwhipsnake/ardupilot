@@ -65,7 +65,7 @@ public:
     static const struct LogStructure log_structure[];
 
     // calculate clothoid parameters for the current path segment
-    void calculate_clothoid_parameters(const Location& prev_wp, const Location& curr_wp, const Location& next_wp, bool reset_state = true);
+    void calculate_clothoid_parameters(const Location& prev_wp, const Location& curr_wp, const Location& next_wp, bool reset_state = true, uint16_t clothoid_params = 0);
 
     // get current navigation state
     ClothoidState get_clothoid_state() const { return _clothoid_state; }
@@ -130,6 +130,7 @@ private:
     float turn_start_distance;
     float _current_track_heading;     // heading of current waypoint from previous waypoint
     float _cross_track_integrator;    // integral of cross track error
+    float _turn_speed;                // speed at which to turn in m/s
 
     float distance_along_segment;
 
@@ -144,7 +145,7 @@ private:
     AP_Float _clothoid_rate;          // rate of change of curvature with distance
     AP_Float _pos_error_gain;         // gain for converting lateral position error into a corrective curvature
     AP_Float _pos_integrator_gain;        // gain for converting longitudinal position error into a corrective curvature
-    AP_Float _turn_radius;            // minimum turn radius in meters
+    AP_Float _min_turn_radius;            // minimum turn radius in meters
     AP_Float _angle_gain;             // gain for converting heading error into a corrective curvature
     AP_Float _xtrack_integrator_distance_limit; // distance at which we consider the vehicle to be stable in meters
     AP_Float _end_distance;            // distance from the final waypoint at which we consider the mission to be complete in meters

@@ -760,9 +760,7 @@ bool ModeAuto::do_nav_wp(const AP_Mission::Mission_Command& cmd, bool always_sto
     Location cmdloc = cmd.content.location;
     cmdloc.sanitize(rover.current_loc);
 
-    // delayed stored in p1 in seconds
-    loiter_duration = ((int16_t) cmd.p1 < 0) ? 0 : cmd.p1;
-    loiter_start_time = 0;
+    uint16_t clothoid_params = cmd.p1;
 
     bool waypoint_changed = cmd.index != prev_nav_cmd.index;
 
@@ -788,11 +786,11 @@ bool ModeAuto::do_nav_wp(const AP_Mission::Mission_Command& cmd, bool always_sto
   
     // calculate clothoid parameters using previous, current and next waypoints
         if (next_command_in_order) {
-            g2.wp_nav.calculate_clothoid_parameters(prev_nav_cmd.content.location, cmdloc, next_cmdloc, true);
+            g2.wp_nav.calculate_clothoid_parameters(prev_nav_cmd.content.location, cmdloc, next_cmdloc, true, clothoid_params);
 
         } else {
             // no previous waypoint, use current location as previous
-            g2.wp_nav.calculate_clothoid_parameters(rover.current_loc, cmdloc, next_cmdloc, false);
+            g2.wp_nav.calculate_clothoid_parameters(rover.current_loc, cmdloc, next_cmdloc, false, clothoid_params);
         }
         
         // set target location to destination

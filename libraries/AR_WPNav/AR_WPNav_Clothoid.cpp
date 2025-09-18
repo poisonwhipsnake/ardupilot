@@ -54,7 +54,7 @@ const AP_Param::GroupInfo AR_WPNav_Clothoid::var_info[] = {
     // @Units: m
     // @Range: 0.5 100.0
     // @Increment: 0.1
-    AP_GROUPINFO("TURNRAD", 4, AR_WPNav_Clothoid, _turn_radius, 4.0f),
+    AP_GROUPINFO("TURNRAD", 4, AR_WPNav_Clothoid, _min_turn_radius, 4.0f),
 
     // @Param: STR_ANG_P
     // @DisplayName: Straight Angle Proportional Gain
@@ -108,6 +108,7 @@ void AR_WPNav_Clothoid::update(float dt)
 
     switch (_clothoid_state) {
         case ClothoidState::ENTRY_SPIRAL: {
+            desired_speed = _turn_speed;
             // calculate heading change from start of entry spiral
             float heading_change = wrap_PI(current_heading - current_turn.entry_spiral_heading);
 
@@ -155,6 +156,7 @@ void AR_WPNav_Clothoid::update(float dt)
         }
         
         case ClothoidState::CONSTANT_TURN: {
+            desired_speed = _turn_speed;
             // constant curvature during turn
             target_curvature = 1.0f / _turn_radius;
             if (current_turn.total_turn_angle < 0) {
@@ -198,6 +200,7 @@ void AR_WPNav_Clothoid::update(float dt)
         }
         
         case ClothoidState::EXIT_SPIRAL: {
+            desired_speed = _turn_speed;
             // mirror of entry spiral calculations
 
             float step_distance = current_loc.get_distance(_prev_location);
@@ -248,7 +251,7 @@ void AR_WPNav_Clothoid::update(float dt)
         
         case ClothoidState::STRAIGHT:
         default: {
-
+            desired_speed = _speed_max;
             _cross_track_error = calc_crosstrack_error_straight(current_loc);
             _angle_error = wrap_PI(_current_track_heading - current_heading);
             target_curvature = 0;
@@ -368,8 +371,17 @@ bool AR_WPNav_Clothoid::reached_destination() const
 }
 
 // calculate clothoid parameters for the current path segment
-void AR_WPNav_Clothoid::calculate_clothoid_parameters(const Location& prev_wp, const Location& curr_wp, const Location& next_wp, bool reset_state)
+void AR_WPNav_Clothoid::calculate_clothoid_parameters(const Location& prev_wp, const Location& curr_wp, const Location& next_wp, bool reset_state, uint16_t clothoid_params)
 {
+    _turn_radius = LOWBYTE(clothoid_params) * 0.2f; // 0m to 51m in 0.2m increments
+    if (_turn_radius < _min_turn_radius) {
+        _turn_radius = _min_turn_radius;
+    }
+    _turn_speed = HIGHBYTE(clothoid_params) * 0.1f / 3.6f; // 0m/s to 25.5km/h in 0.1 km/h increments
+    if (_turn_speed == 0 || _turn_speed > _speed_max) {
+        _turn_speed = _speed_max;
+    }
+
     _prev_wp = prev_wp;
     _curr_wp = curr_wp;
     _next_wp = next_wp;
