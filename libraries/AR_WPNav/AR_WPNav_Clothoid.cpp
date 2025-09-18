@@ -395,6 +395,8 @@ void AR_WPNav_Clothoid::calculate_clothoid_parameters(const Location& prev_wp, c
     
     Vector2f first_vector = _prev_wp.get_distance_NE(_curr_wp);
     _current_track_heading = first_vector.angle();
+    _cross_track_error = calc_crosstrack_error_straight(current_loc);
+    _angle_error = wrap_PI(_current_track_heading - AP::ahrs().get_yaw());
 
     if (!_next_wp.initialised()) {
         // Complete the mission at _radius metres from the final waypoint
@@ -505,9 +507,6 @@ void AR_WPNav_Clothoid::calculate_clothoid_parameters(const Location& prev_wp, c
     }
     next_turn.turn_centre = next_turn.constant_turn_start;
     next_turn.turn_centre.offset(turn_center.x, turn_center.y);
-
-    // _cross_track_error = calc_crosstrack_error_straight(current_loc);
-    // _angle_error = wrap_PI(_current_track_heading - AP::ahrs().get_yaw());
 }
 
 // calculate position on clothoid given heading change from start
