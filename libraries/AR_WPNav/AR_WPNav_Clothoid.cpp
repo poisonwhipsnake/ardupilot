@@ -438,7 +438,7 @@ void AR_WPNav_Clothoid::calculate_clothoid_parameters(const Location& prev_wp, c
         next_turn.exit_angle = next_turn.total_turn_angle - clothoid_angle;
 
         a = _turn_radius * sinf(next_turn.fixed_rate_angle / 2);
-        omega = M_PI_2 - clothoid_angle - (next_turn.fixed_rate_angle / 2);
+        omega = M_PI_2 - fabsf(clothoid_angle) - (next_turn.fixed_rate_angle / 2);
     } else {
         // review and update this section
         next_turn.use_fixed_radius = false;
