@@ -345,11 +345,11 @@ bool AR_WPNav_Clothoid::reached_destination() const
     }
     
     if (fabsf(_angle_error) < M_PI_2){
-        float heading_to_destination = current_loc.get_bearing(_destination);
-        float relative_heading_to_destination = wrap_PI(heading_to_destination - _current_track_heading);
-        if (fabsf(relative_heading_to_destination) > M_PI_2){
-            return true;
-        } 
+        // float heading_to_destination = current_loc.get_bearing(_destination);
+        // float relative_heading_to_destination = wrap_PI(heading_to_destination - _current_track_heading);
+        // if (fabsf(relative_heading_to_destination) > M_PI_2){
+        //     return true;
+        // } 
 
         if (_distance_to_destination <= turn_start_distance){
             return true;
@@ -519,6 +519,14 @@ void AR_WPNav_Clothoid::calculate_clothoid_parameters(const Location& prev_wp, c
     next_turn.turn_centre = next_turn.constant_turn_start;
     next_turn.turn_centre.offset(turn_center.x, turn_center.y);
 
+    if (reset_state && current_turn.exit_spiral_end.get_distance(_curr_wp) < next_turn.entry_spiral_start.get_distance(_curr_wp)){
+        float bearing_to_curr_wp = next_turn.entry_spiral_heading;
+        float half_dist = current_turn.exit_spiral_end.get_distance(next_turn.entry_spiral_start) * 0.5f;
+        Location half_point = next_turn.exit_spiral_end;
+        half_point.offset_bearing(degrees(bearing_to_curr_wp), half_dist);
+        turn_start_distance = _curr_wp.get_distance(half_point);
+        distance_along_segment = half_dist;
+    }
     // _cross_track_error = calc_crosstrack_error_straight(current_loc);
     // _angle_error = wrap_PI(_current_track_heading - AP::ahrs().get_yaw());
 }
