@@ -378,7 +378,7 @@ void AR_WPNav_Clothoid::calculate_clothoid_parameters(const Location& prev_wp, c
         _turn_radius = _min_turn_radius;
     }
     _turn_speed = HIGHBYTE(clothoid_params) * 0.1f / 3.6f; // 0m/s to 25.5km/h in 0.1 km/h increments
-    if (_turn_speed == 0 || _turn_speed > _speed_max) {
+    if (_turn_speed < 0.01f || _turn_speed > _speed_max) {
         _turn_speed = _speed_max;
     }
 
