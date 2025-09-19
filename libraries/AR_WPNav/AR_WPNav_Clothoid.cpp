@@ -87,7 +87,7 @@ void AR_WPNav_Clothoid::update_speed(float dt)
 {
     float desired_speed;
     switch (_clothoid_state) {
-        case ClothoidState::STRAIGHT:
+        case ClothoidState::STRAIGHT: {
             float stopping_distance = _atc.get_stopping_distance(_speed_max - _turn_speed);
             if (_distance_to_destination <= turn_start_distance + stopping_distance)
             {
@@ -97,10 +97,11 @@ void AR_WPNav_Clothoid::update_speed(float dt)
                 desired_speed = _speed_max;
             }            
             break;
+        }
         case ClothoidState::ENTRY_SPIRAL: 
         case ClothoidState::EXIT_SPIRAL:
         case ClothoidState::CONSTANT_TURN:
-        default:
+        default: {
             if (fabsf(current_turn.total_turn_angle) < radians(_slow_angle)){
                 desired_speed = _speed_max;
             }
@@ -108,6 +109,7 @@ void AR_WPNav_Clothoid::update_speed(float dt)
                 desired_speed = _turn_speed;
             }
             break;
+        }
     }
     _desired_speed_limited = _atc.get_desired_speed_accel_limited(desired_speed, dt);
 }
