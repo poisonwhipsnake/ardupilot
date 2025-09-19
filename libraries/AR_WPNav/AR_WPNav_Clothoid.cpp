@@ -89,7 +89,7 @@ void AR_WPNav_Clothoid::update_speed(float dt)
     switch (_clothoid_state) {
         case ClothoidState::STRAIGHT: {
             float stopping_distance = _atc.get_stopping_distance(_speed_max - _turn_speed);
-            if (_distance_to_destination <= turn_start_distance + stopping_distance)
+            if (_distance_to_destination <= turn_start_distance + stopping_distance && fabsf(next_turn.total_turn_angle) > radians(_slow_angle))
             {
                 desired_speed = _turn_speed;
             }
