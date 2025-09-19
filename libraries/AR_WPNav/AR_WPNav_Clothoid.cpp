@@ -70,6 +70,8 @@ const AP_Param::GroupInfo AR_WPNav_Clothoid::var_info[] = {
 
     AP_GROUPINFO("END_DIST", 8, AR_WPNav_Clothoid, _end_distance, 5.0),
 
+    AP_GROUPINFO("SLOW_ANG", 9, AR_WPNav_Clothoid, _slow_angle, 20.0f),
+
     AP_GROUPEND
 };
 
@@ -79,6 +81,35 @@ AR_WPNav_Clothoid::AR_WPNav_Clothoid(AR_AttitudeControl& atc, AR_PosControl &pos
     _clothoid_state(ClothoidState::STRAIGHT)
 {
     AP_Param::setup_object_defaults(this, var_info);
+}
+
+void AR_WPNav_Clothoid::update_speed(float dt)
+{
+    float desired_speed;
+    switch (_clothoid_state) {
+        case ClothoidState::STRAIGHT:
+            float stopping_distance = _atc.get_stopping_distance(_speed_max - _turn_speed);
+            if (_distance_to_destination <= turn_start_distance + stopping_distance)
+            {
+                desired_speed = _turn_speed;
+            }
+            else{
+                desired_speed = _speed_max;
+            }            
+            break;
+        case ClothoidState::ENTRY_SPIRAL: 
+        case ClothoidState::EXIT_SPIRAL:
+        case ClothoidState::CONSTANT_TURN:
+        default:
+            if (fabsf(current_turn.total_turn_angle) < radians(_slow_angle)){
+                desired_speed = _speed_max;
+            }
+            else{
+                desired_speed = _turn_speed;
+            }
+            break;
+    }
+    _desired_speed_limited = _atc.get_desired_speed_accel_limited(desired_speed, dt);
 }
 
 // update navigation
@@ -102,13 +133,11 @@ void AR_WPNav_Clothoid::update(float dt)
     float current_heading = AP::ahrs().get_yaw();
     Vector2f heading_vec(cosf(current_heading), sinf(current_heading));
 
-    // determine which segment we're in and calculate desired speed and curvature
-    float desired_speed = _reversed ? -_speed_max : _speed_max;
+    // determine which segment we're in and calculate curvature
     float target_curvature = 0;
 
     switch (_clothoid_state) {
         case ClothoidState::ENTRY_SPIRAL: {
-            desired_speed = _turn_speed;
             // calculate heading change from start of entry spiral
             float heading_change = wrap_PI(current_heading - current_turn.entry_spiral_heading);
 
@@ -156,7 +185,6 @@ void AR_WPNav_Clothoid::update(float dt)
         }
         
         case ClothoidState::CONSTANT_TURN: {
-            desired_speed = _turn_speed;
             // constant curvature during turn
             target_curvature = 1.0f / _turn_radius;
             if (current_turn.total_turn_angle < 0) {
@@ -200,7 +228,6 @@ void AR_WPNav_Clothoid::update(float dt)
         }
         
         case ClothoidState::EXIT_SPIRAL: {
-            desired_speed = _turn_speed;
             // mirror of entry spiral calculations
 
             float step_distance = current_loc.get_distance(_prev_location);
@@ -251,7 +278,6 @@ void AR_WPNav_Clothoid::update(float dt)
         
         case ClothoidState::STRAIGHT:
         default: {
-            desired_speed = _speed_max;
             _cross_track_error = calc_crosstrack_error_straight(current_loc);
             _angle_error = wrap_PI(_current_track_heading - current_heading);
             target_curvature = 0;
@@ -288,9 +314,9 @@ void AR_WPNav_Clothoid::update(float dt)
     } else if (target_curvature < -2.0f / _turn_radius) {
         target_curvature = -2.0f / _turn_radius;
     }
-    
+
     // apply desired speed and store target curvature
-    _desired_speed_limited = _atc.get_desired_speed_accel_limited(desired_speed, dt);
+    update_speed(dt);
     _target_curvature = target_curvature;
     
     // For compatibility with parent class, calculate turn rate and lateral acceleration

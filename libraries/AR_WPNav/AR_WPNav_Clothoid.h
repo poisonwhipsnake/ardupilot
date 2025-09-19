@@ -96,7 +96,7 @@ private:
     // calculate heading and curvature at a given distance along clothoid
     void calc_clothoid_properties(float distance, float& heading, float& curvature) const;
 
-    
+    void update_speed(float dt);
 
     // member variables
     ClothoidState _clothoid_state;    // current state of clothoid navigation
@@ -150,4 +150,5 @@ private:
     AP_Float _angle_gain;             // gain for converting heading error into a corrective curvature
     AP_Float _xtrack_integrator_distance_limit; // distance at which we consider the vehicle to be stable in meters
     AP_Float _end_distance;            // distance from the final waypoint at which we consider the mission to be complete in meters
+    AP_Float _slow_angle;              // minimum angle for a turn at which we slow down in degrees
 }; 
