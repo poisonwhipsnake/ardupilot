@@ -151,4 +151,5 @@ private:
     AP_Float _xtrack_integrator_distance_limit; // distance at which we consider the vehicle to be stable in meters
     AP_Float _end_distance;            // distance from the final waypoint at which we consider the mission to be complete in meters
     AP_Float _slow_angle;              // minimum angle for a turn at which we slow down in degrees
+    AP_Float _turn_speed_max;          // maximum turn speed in m/s
 }; 
