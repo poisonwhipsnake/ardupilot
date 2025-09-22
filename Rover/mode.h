@@ -305,6 +305,9 @@ public:
         DISSARM   = 4,
     };
 
+    void set_submode(uint8_t new_submode) { _submode = static_cast<SubMode>(new_submode); }
+    uint8_t get_submode() const { return (uint8_t)_submode; }
+
 protected:
 
     bool _enter() override;

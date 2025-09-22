@@ -400,6 +400,8 @@ private:
     bool set_mode(Mode &new_mode, ModeReason reason);
     bool set_mode(const uint8_t new_mode, ModeReason reason) override;
     bool set_mode(Mode::Number new_mode, ModeReason reason);
+    bool set_auto_sub_mode(const uint8_t new_submode) override;
+    uint8_t get_auto_sub_mode() const override;
     uint8_t get_mode() const override { return (uint8_t)control_mode->mode_number(); }
     bool current_mode_requires_mission() const override {
         return control_mode == &mode_auto;
