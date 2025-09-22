@@ -12,8 +12,7 @@ void ModeHold::update()
     // relax mainsail
     g2.sailboat.relax_sails();
 
-    // update navigation controller to hold the track, but stop the vehicle
-    navigate_to_waypoint();
     // hold position - stop motors and center steering
     g2.motors.set_throttle(throttle);
+    g2.motors.set_steering(0.0f);
 }
