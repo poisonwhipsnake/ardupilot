@@ -346,10 +346,10 @@ bool ModeAuto::reached_destination() const
 {
     switch (_submode) {
     case SubMode::WP:
+    case SubMode::Stop:
         return g2.wp_nav.reached_destination();
         break;
     case SubMode::HeadingAndSpeed:
-    case SubMode::Stop:
         // always return true because this is the safer option to allow missions to continue
         return true;
         break;
