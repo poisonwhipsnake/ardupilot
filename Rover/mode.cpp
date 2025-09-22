@@ -355,8 +355,8 @@ bool Mode::stop_vehicle()
     // relax sails if present
     g2.sailboat.relax_sails();
 
-    // send to motor
-    g2.motors.set_throttle(throttle_out);
+    // send to motor, force zero throttle
+    g2.motors.set_throttle(0.0);
 
     if (!stopped) {
         calc_steering_from_curvature(g2.wp_nav.get_target_curvature());
