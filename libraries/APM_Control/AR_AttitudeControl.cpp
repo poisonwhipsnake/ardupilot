@@ -18,6 +18,7 @@
 #include <AP_HAL/AP_HAL.h>
 #include "AR_AttitudeControl.h"
 #include <AP_GPS/AP_GPS.h>
+#include <AP_Logger/AP_Logger.h>
 
 // attitude control default definition
 #define AR_ATTCONTROL_STEER_ANG_P       2.00f
@@ -660,6 +661,7 @@ float AR_AttitudeControl::get_steering_out_rate(float desired_target, bool motor
 
     float desired_steering_angle = degrees(atanf(desired_target*_wheelbase));
     float desired_turn_rate = desired_target;
+    float target_curvature = desired_target;
 
     // if not called recently, reset input filter and desired turn rate to actual turn rate (used for accel limiting)
     const uint32_t now = AP_HAL::millis();
@@ -748,6 +750,10 @@ float AR_AttitudeControl::get_steering_out_rate(float desired_target, bool motor
 
         _desired_steering_angle= degrees(atanf(_desired_turn_rate*_wheelbase/speed));
     }
+    else{
+        // in curvature mode we use the desired curvature to calculate the steering angle
+        _desired_steering_angle = degrees(atanf(target_curvature*_wheelbase));
+    }
 
    
     if (_steering_valve_mode == 1){
@@ -761,12 +767,43 @@ float AR_AttitudeControl::get_steering_out_rate(float desired_target, bool motor
         }
     }
     else {
+        
         // use the desired turn rate to calculate the steering angle
         output = _desired_steering_angle;
         output = output / _max_wheel_angle;
+
     }
 
+
     output = constrain_float(output, -1,1);
+
+    float estimated_steering_angle = 0;
+    float estimated_curvature = 0;
+    float speed;
+    if (get_forward_speed(speed)) {
+        if (speed > 0.1){
+            
+           float yaw_rate = AP::ahrs().get_yaw_rate_earth();
+           estimated_curvature = yaw_rate / speed; // in radians per meter
+           float estimated_steering_angle_rad = atanf(yaw_rate * _wheelbase / speed);
+           // Optionally convert to degrees:
+           estimated_steering_angle = degrees(estimated_steering_angle_rad);
+        }
+    }
+
+    #if HAL_LOGGING_ENABLED
+        
+        AP::logger().WriteStreaming("STR", "TimeUS,TC,TSA,Out,EC,EA", "Qfffff",
+                                        AP_HAL::micros64(),
+                                        target_curvature,
+                                        _desired_steering_angle,
+                                        output,
+                                        estimated_curvature,
+                                        estimated_steering_angle
+                                        );
+        
+
+    #endif
 
 
     // constrain and return final output
