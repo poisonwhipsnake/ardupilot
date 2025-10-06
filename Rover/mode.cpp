@@ -359,6 +359,8 @@ bool Mode::stop_vehicle()
     g2.motors.set_throttle(0.0);
 
     if (!stopped) {
+        g2.wp_nav.update(rover.G_Dt);
+        _distance_to_destination = g2.wp_nav.get_distance_to_destination();
         calc_steering_from_curvature(g2.wp_nav.get_target_curvature());
     }
     else {
