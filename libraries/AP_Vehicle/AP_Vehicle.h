@@ -121,6 +121,9 @@ public:
         return control_mode_reason;
     }
 
+    virtual bool set_auto_sub_mode(const uint8_t new_submode) = 0;
+    virtual uint8_t get_auto_sub_mode() const = 0;
+
     virtual bool current_mode_requires_mission() const { return false; }
 
     // perform any notifications required to indicate a mode change

@@ -2778,6 +2778,15 @@ function vehicle:get_mode() end
 function vehicle:set_mode(mode_number) end
 
 -- desc
+---@param sub_mode integer
+---@return boolean
+function vehicle:set_auto_sub_mode(sub_mode) end
+
+-- desc
+---@return integer
+function vehicle:get_auto_sub_mode() end
+
+-- desc
 ---@param param1 Vector2f_ud
 ---@return boolean
 function vehicle:set_velocity_match(param1) end

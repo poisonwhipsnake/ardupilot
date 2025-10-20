@@ -212,6 +212,17 @@ bool Rover::gcs_mode_enabled(const Mode::Number mode_num) const
     return !block_GCS_mode_change((uint8_t)mode_num, mode_list, ARRAY_SIZE(mode_list));
 }
 
+bool Rover::set_auto_sub_mode(const uint8_t new_submode)
+{
+    mode_auto.set_submode(new_submode);
+    return true;
+}
+
+uint8_t Rover::get_auto_sub_mode() const
+{
+    return (uint8_t)mode_auto.get_submode();
+}
+
 bool Rover::set_mode(Mode &new_mode, ModeReason reason)
 {
     if (control_mode == &new_mode) {

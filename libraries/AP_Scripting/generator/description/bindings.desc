@@ -328,6 +328,8 @@ singleton AP_Vehicle scheduler-semaphore
 singleton AP_Vehicle method set_mode boolean uint8_t'skip_check ModeReason::SCRIPTING'literal
 singleton AP_Vehicle method get_mode uint8_t
 singleton AP_Vehicle method get_control_mode_reason uint8_t
+singleton AP_Vehicle method set_auto_sub_mode boolean uint8_t 0 7
+singleton AP_Vehicle method get_auto_sub_mode uint8_t
 singleton AP_Vehicle method get_likely_flying boolean
 singleton AP_Vehicle method get_time_flying_ms uint32_t
 singleton AP_Vehicle method get_control_output boolean AP_Vehicle::ControlOutput'enum AP_Vehicle::ControlOutput::Roll ((uint32_t)AP_Vehicle::ControlOutput::Last_ControlOutput-1) float'Null
