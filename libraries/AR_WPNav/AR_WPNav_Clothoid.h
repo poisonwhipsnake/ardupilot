@@ -154,6 +154,7 @@ private:
     AP_Float _min_turn_radius;            // minimum turn radius in meters
     AP_Float _angle_gain;             // gain for converting heading error into a corrective curvature
     AP_Float _pos_derivative_gain;    // gain for derivative term on position error
+    AP_Float _speed_correction_active;
     AP_Float _xtrack_integrator_distance_limit; // distance at which we consider the vehicle to be stable in meters
     AP_Float _end_distance;            // distance from the final waypoint at which we consider the mission to be complete in meters
     AP_Float _slow_angle;              // minimum angle for a turn at which we slow down in degrees
