@@ -302,8 +302,8 @@ void GCS_MAVLINK_Rover::send_pid_tuning()
     if (g.gcs_pid_mask & 4) {
         pid_info =  &g2.wp_nav.get_pid_info();
         mavlink_msg_pid_tuning_send(chan, PID_TUNING_PITCH,
-                                    degrees(pid_info->target),
-                                    degrees(pid_info->actual),
+                                    pid_info->target,
+                                    pid_info->actual,
                                     pid_info->FF,
                                     pid_info->P,
                                     pid_info->I,

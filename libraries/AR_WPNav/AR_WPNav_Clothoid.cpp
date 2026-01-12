@@ -303,16 +303,21 @@ void AR_WPNav_Clothoid::update(float dt)
     _previous_cross_track_error = smoothed_cross_track_error;
 
 
-    _pid_info.I = _cross_track_integrator*_pos_integrator_gain;
-    _pid_info.P = -_cross_track_error*_pos_error_gain;
-    _pid_info.D = _angle_error*_angle_gain;
+    float iTerm = _cross_track_integrator*_pos_integrator_gain;
+    float pTerm = -_cross_track_error*_pos_error_gain;
+    float angTerm = _angle_error*_angle_gain;
+    float dTerm = -derivative*_pos_derivative_gain;
+
+    _pid_info.I = iTerm;
+    _pid_info.P = pTerm;
+    _pid_info.D = angTerm;
     _pid_info.FF = target_curvature;
-    _pid_info.target = -derivative*_pos_derivative_gain;
+    _pid_info.target = dTerm;
     _pid_info.actual = -_cross_track_error;
 
 
     
-    float target_curvature_control =  _pid_info.P + _pid_info.D + _pid_info.I+ _pid_info.target;
+    float target_curvature_control =  pTerm + angTerm + iTerm+ dTerm;
     
 
 
