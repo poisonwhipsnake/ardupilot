@@ -303,12 +303,13 @@ void AR_WPNav_Clothoid::update(float dt)
 
     if(fabsf(_cross_track_error) < _xtrack_integrator_distance_limit){//} && AP::ahrs().get_velocity_NED().length() > 0.2f) {
 
-        if (_speed_correction_active<0){
-            _cross_track_integrator += -_cross_track_error * dt;
-        }
-        else{
-            _cross_track_integrator += -_cross_track_error * dt* speed;
-        }
+        _cross_track_integrator += -_cross_track_error * dt;
+    //    if (_speed_correction_active<0){
+    //        
+    //    }
+    //    else{
+    //        _cross_track_integrator += -_cross_track_error * dt* speed;
+    //    }
     }
     else{
         _cross_track_integrator = 0;
@@ -320,14 +321,14 @@ void AR_WPNav_Clothoid::update(float dt)
     
     float derivative = (smoothed_cross_track_error - _previous_cross_track_error) / dt;
 
-    if (_speed_correction_active>2.0f){
-        if (speed > 0.2){
-            derivative = derivative / speed;
-        }
-        else{
-            derivative = 0;
-        }
-    }
+    //if (_speed_correction_active>2.0f){
+    //    if (speed > 0.2){
+    //        derivative = derivative / speed;
+    //    }
+    //    else{
+    //        derivative = 0;
+    //    }
+    //}
     _previous_cross_track_error = smoothed_cross_track_error;
 
 
@@ -335,16 +336,16 @@ void AR_WPNav_Clothoid::update(float dt)
     _pid_info.P = -_cross_track_error*_pos_error_gain;
     _pid_info.D = _angle_error*_angle_gain;
     _pid_info.FF = target_curvature;
-    _pid_info.target = derivative*_pos_derivative_gain;
+    _pid_info.target = -derivative*_pos_derivative_gain;
     _pid_info.actual = -_cross_track_error;
 
 
     
-    float target_curvature_control =  (-_cross_track_error*_pos_error_gain) + (_angle_error*_angle_gain) + (_cross_track_integrator*_pos_integrator_gain)+(-derivative*_pos_derivative_gain);
+    float target_curvature_control =  _pid_info.P + _pid_info.D + _pid_info.I+ _pid_info.target;
     
 
 
-    if ((_cross_track_error < 0 && _angle_error < -0.1) || (_cross_track_error > 0 && _angle_error > 0.1)){
+    /*if ((_cross_track_error < 0 && _angle_error < -0.1) || (_cross_track_error > 0 && _angle_error > 0.1)){
 
         float cross_track_factor = (M_PI_4 - (fabsf(_angle_error)-0.1))/M_PI_4;
         if ((fabsf(_angle_error)-0.1) > M_PI_4){
@@ -352,7 +353,7 @@ void AR_WPNav_Clothoid::update(float dt)
         }
         target_curvature_control = (cross_track_factor*(-_cross_track_error*_pos_error_gain) )+ (_angle_error*_angle_gain);
         
-    }
+    }*/
 
     target_curvature += target_curvature_control;
 
