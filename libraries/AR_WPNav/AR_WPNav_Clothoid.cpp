@@ -332,13 +332,13 @@ void AR_WPNav_Clothoid::update(float dt)
     }*/
 
     target_curvature += target_curvature_control;
-
+    /*
     if (target_curvature > 2.0f / _turn_radius) {
         target_curvature = 2.0f / _turn_radius;
     } else if (target_curvature < -2.0f / _turn_radius) {
         target_curvature = -2.0f / _turn_radius;
-    }
-    
+    }*/
+
     // apply desired speed and store target curvature
     _desired_speed_limited = _atc.get_desired_speed_accel_limited(desired_speed, dt);
     _target_curvature = target_curvature;
