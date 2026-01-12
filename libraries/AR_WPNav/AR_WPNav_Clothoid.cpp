@@ -269,7 +269,7 @@ void AR_WPNav_Clothoid::update(float dt)
         }
     }
 
-    update_speed(dt);
+
 
 
     if(fabsf(_cross_track_error) < _xtrack_integrator_distance_limit){//} && AP::ahrs().get_velocity_NED().length() > 0.2f) {
@@ -307,10 +307,10 @@ void AR_WPNav_Clothoid::update(float dt)
     //float pTerm = -_cross_track_error*_pos_error_gain;
     //float angTerm = _angle_error*_angle_gain;
     //float dTerm = -derivative*_pos_derivative_gain;
-    float local_speed = speed;
-    if (speed< 0.1f) {
-        local_speed = 0.1f;
-    }
+    //float local_speed = speed;
+    //if (speed< 0.1f) {
+    //    local_speed = 0.1f;
+    //}
 
     float steering_angle_target = _angle_error - asinf(fmaxf(fminf((_cross_track_error)/_pos_error_gain, 0.99f), -0.99f));
     float stanley = (1/3.05)*tanf(steering_angle_target);

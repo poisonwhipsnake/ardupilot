@@ -136,7 +136,7 @@ private:
     float _cross_track_integrator;    // integral of cross track error
     float _turn_speed;                // speed at which to turn in m/s
     float _previous_cross_track_error; // previous cross track error for derivative term
-    float _turn_radius;               // turn radius in meters
+
 
     float distance_along_segment;
 
