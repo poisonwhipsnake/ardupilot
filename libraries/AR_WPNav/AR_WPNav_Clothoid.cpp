@@ -78,6 +78,9 @@ const AP_Param::GroupInfo AR_WPNav_Clothoid::var_info[] = {
 
     AP_GROUPINFO("POS_D", 12, AR_WPNav_Clothoid, _pos_derivative_gain, 0.01f),
 
+    AP_GROUPINFO("SPD_COR", 13,  AR_WPNav_Clothoid, _speed_correction_active , -1.0f),
+
+
 
     AP_GROUPEND
 };
@@ -295,15 +298,36 @@ void AR_WPNav_Clothoid::update(float dt)
         }
     }
 
+    update_speed(dt);
+
+
     if(fabsf(_cross_track_error) < _xtrack_integrator_distance_limit){//} && AP::ahrs().get_velocity_NED().length() > 0.2f) {
-        _cross_track_integrator += -_cross_track_error * dt;
+
+        if (_speed_correction_active<0){
+            _cross_track_integrator += -_cross_track_error * dt;
+        }
+        else{
+            _cross_track_integrator += -_cross_track_error * dt* speed;
+        }
     }
     else{
         _cross_track_integrator = 0;
     }
 
+
     float smoothed_cross_track_error = ((_d_filter_term * _cross_track_error) + ((1-_d_filter_term) * _previous_cross_track_error));
+    
+    
     float derivative = (smoothed_cross_track_error - _previous_cross_track_error) / dt;
+
+    if (_speed_correction_active>2.0f){
+        if (speed > 0.2){
+            derivative = derivative / speed;
+        }
+        else{
+            derivative = 0;
+        }
+    }
     _previous_cross_track_error = smoothed_cross_track_error;
 
 
@@ -313,6 +337,7 @@ void AR_WPNav_Clothoid::update(float dt)
     _pid_info.FF = target_curvature;
     _pid_info.target = derivative*_pos_derivative_gain;
     _pid_info.actual = -_cross_track_error;
+    _pid_info.slew_rate = 2;
 
     
     float target_curvature_control =  (-_cross_track_error*_pos_error_gain) + (_angle_error*_angle_gain) + (_cross_track_integrator*_pos_integrator_gain)+(-derivative*_pos_derivative_gain);
