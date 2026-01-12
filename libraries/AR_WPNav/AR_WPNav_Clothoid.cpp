@@ -287,10 +287,10 @@ void AR_WPNav_Clothoid::update(float dt)
     }
 
 
-    float smoothed_cross_track_error = ((_d_filter_term * _cross_track_error) + ((1-_d_filter_term) * _previous_cross_track_error));
+    //float smoothed_cross_track_error = ((_d_filter_term * _cross_track_error) + ((1-_d_filter_term) * _previous_cross_track_error));
     
     
-    float derivative = (smoothed_cross_track_error - _previous_cross_track_error) / dt;
+    //float derivative = (smoothed_cross_track_error - _previous_cross_track_error) / dt;
 
     //if (_speed_correction_active>2.0f){
     //    if (speed > 0.2){
@@ -300,24 +300,31 @@ void AR_WPNav_Clothoid::update(float dt)
     //        derivative = 0;
     //    }
     //}
-    _previous_cross_track_error = smoothed_cross_track_error;
+    //_previous_cross_track_error = smoothed_cross_track_error;
 
 
     float iTerm = _cross_track_integrator*_pos_integrator_gain;
-    float pTerm = -_cross_track_error*_pos_error_gain;
-    float angTerm = _angle_error*_angle_gain;
-    float dTerm = -derivative*_pos_derivative_gain;
+    //float pTerm = -_cross_track_error*_pos_error_gain;
+    //float angTerm = _angle_error*_angle_gain;
+    //float dTerm = -derivative*_pos_derivative_gain;
+    float local_speed = speed;
+    if (speed< 0.1f) {
+        local_speed = 0.1f;
+    }
+
+    float steering_angle_target = _angle_error - asinf(fmaxf(fminf((_cross_track_error)/_pos_error_gain, 0.99f), -0.99f));
+    float stanley = (1/3.05)*tanf(steering_angle_target);
 
     _pid_info.I = iTerm;
-    _pid_info.P = pTerm;
-    _pid_info.D = angTerm;
+    _pid_info.P = steering_angle_target;
+    _pid_info.D = stanley;
     _pid_info.FF = target_curvature;
-    _pid_info.target = dTerm;
+    //_pid_info.target = dTerm;
     _pid_info.actual = -_cross_track_error;
 
 
     
-    float target_curvature_control =  pTerm + angTerm + iTerm+ dTerm;
+    float target_curvature_control =  stanley + iTerm;
     
 
 
