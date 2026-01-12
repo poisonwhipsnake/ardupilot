@@ -300,7 +300,7 @@ void GCS_MAVLINK_Rover::send_pid_tuning()
 
     // pitch to throttle pid
     if (g.gcs_pid_mask & 4) {
-        pid_info = &g2.attitude_control.get_pitch_to_throttle_pid().get_pid_info();
+        pid_info =  &g2.wp_nav.get_pid_info();
         mavlink_msg_pid_tuning_send(chan, PID_TUNING_PITCH,
                                     degrees(pid_info->target),
                                     degrees(pid_info->actual),

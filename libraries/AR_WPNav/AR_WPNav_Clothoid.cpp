@@ -74,6 +74,10 @@ const AP_Param::GroupInfo AR_WPNav_Clothoid::var_info[] = {
 
     AP_GROUPINFO("TURN_SPD_MAX", 10, AR_WPNav_Clothoid, _turn_speed_max, 3.0f),
 
+    AP_GROUPINFO("D_FILTER", 11, AR_WPNav_Clothoid, _d_filter_term, 0.1f),
+
+    AP_GROUPINFO("POS_D", 12, AR_WPNav_Clothoid, _pos_derivative_gain, 0.01f),
+
 
     AP_GROUPEND
 };
@@ -297,8 +301,21 @@ void AR_WPNav_Clothoid::update(float dt)
     else{
         _cross_track_integrator = 0;
     }
+
+    float smoothed_cross_track_error = ((_d_filter_term * _cross_track_error) + ((1-_d_filter_term) * _previous_cross_track_error));
+    float derivative = (smoothed_cross_track_error - _previous_cross_track_error) / dt;
+    _previous_cross_track_error = smoothed_cross_track_error;
+
+
+    _pid_info.I = _cross_track_integrator*_pos_integrator_gain;
+    _pid_info.P = -_cross_track_error*_pos_error_gain;
+    _pid_info.D = _angle_error*_angle_gain;
+    _pid_info.FF = target_curvature;
+    _pid_info.target = derivative*_pos_derivative_gain;
+    _pid_info.actual = -_cross_track_error;
+
     
-    float target_curvature_control =  (-_cross_track_error*_pos_error_gain) + (_angle_error*_angle_gain) + (_cross_track_integrator*_pos_integrator_gain);
+    float target_curvature_control =  (-_cross_track_error*_pos_error_gain) + (_angle_error*_angle_gain) + (_cross_track_integrator*_pos_integrator_gain)+(-derivative*_pos_derivative_gain);
     
 
 

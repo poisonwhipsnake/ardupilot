@@ -75,6 +75,8 @@ public:
     void log_state_info(const Location& current_loc, float current_heading) const;
     void log_path_points() const;
 
+    const AP_PIDInfo& get_pid_info() const { return _pid_info; }
+
 private:
     // calculate clothoid parameters for the current path segment
     void calculate_clothoid_parameters();
@@ -100,6 +102,8 @@ private:
 
     // member variables
     ClothoidState _clothoid_state;    // current state of clothoid navigation
+
+    AP_PIDInfo _pid_info;          // PID info for logging
     struct Clothoid_Turn_Geometry {
         float entry_length;
         float exit_length;
@@ -131,6 +135,7 @@ private:
     float _current_track_heading;     // heading of current waypoint from previous waypoint
     float _cross_track_integrator;    // integral of cross track error
     float _turn_speed;                // speed at which to turn in m/s
+    float _previous_cross_track_error; // previous cross track error for derivative term
     float _turn_radius;               // turn radius in meters
 
     float distance_along_segment;
@@ -148,8 +153,10 @@ private:
     AP_Float _pos_integrator_gain;        // gain for converting longitudinal position error into a corrective curvature
     AP_Float _min_turn_radius;            // minimum turn radius in meters
     AP_Float _angle_gain;             // gain for converting heading error into a corrective curvature
+    AP_Float _pos_derivative_gain;    // gain for derivative term on position error
     AP_Float _xtrack_integrator_distance_limit; // distance at which we consider the vehicle to be stable in meters
     AP_Float _end_distance;            // distance from the final waypoint at which we consider the mission to be complete in meters
     AP_Float _slow_angle;              // minimum angle for a turn at which we slow down in degrees
     AP_Float _turn_speed_max;          // maximum turn speed in m/s
+    AP_Float _d_filter_term;            // low-pass filter term
 }; 
