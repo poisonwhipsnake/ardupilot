@@ -3,7 +3,7 @@
 #include <AP_SerialManager/AP_SerialManager.h>
 
 #ifndef AP_DRONECAN_SERIAL_NUM_PORTS
-#define AP_DRONECAN_SERIAL_NUM_PORTS 6
+#define AP_DRONECAN_SERIAL_NUM_PORTS 8
 #endif
 
 class AP_DroneCAN;
