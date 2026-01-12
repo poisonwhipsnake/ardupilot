@@ -836,9 +836,11 @@ void Util::boot_to_dfu()
 void Util::set_soft_armed(const bool b)
 {
     AP_HAL::Util::set_soft_armed(b);
-#ifdef HAL_GPIO_PIN_nARMED1
-    palWriteLine(HAL_GPIO_PIN_nARMED1, b);
-    palWriteLine(HAL_GPIO_PIN_nARMED2, b);
-#endif
+// #ifdef HAL_GPIO_PIN_nARMED1
+    hal.gpio->pinMode(101, HAL_GPIO_OUTPUT);
+    hal.gpio->pinMode(102, HAL_GPIO_OUTPUT);
+    hal.gpio->write(101, b);
+    hal.gpio->write(102, b);
+// #endif
 }
 
