@@ -337,7 +337,7 @@ void AR_WPNav_Clothoid::update(float dt)
     _pid_info.FF = target_curvature;
     _pid_info.target = derivative*_pos_derivative_gain;
     _pid_info.actual = -_cross_track_error;
-    _pid_info.slew_rate = 2;
+
 
     
     float target_curvature_control =  (-_cross_track_error*_pos_error_gain) + (_angle_error*_angle_gain) + (_cross_track_integrator*_pos_integrator_gain)+(-derivative*_pos_derivative_gain);
@@ -365,6 +365,7 @@ void AR_WPNav_Clothoid::update(float dt)
     // apply desired speed and store target curvature
     update_speed(dt);
     _target_curvature = target_curvature;
+    _pid_info.slew_rate = target_curvature;
     
     // For compatibility with parent class, calculate turn rate and lateral acceleration
     _desired_turn_rate_rads = _target_curvature * speed;
@@ -374,6 +375,7 @@ void AR_WPNav_Clothoid::update(float dt)
     if (fabsf(_cross_track_error) > _turn_radius/2){
         _clothoid_state = ClothoidState::STRAIGHT;
     }
+   
 }
 
 // calculate the crosstrack error
