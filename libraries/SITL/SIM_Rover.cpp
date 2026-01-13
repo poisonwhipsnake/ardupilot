@@ -48,6 +48,9 @@ SimRover::SimRover(const char *frame_str) :
     if (omni3) {
         printf("Omni3 Mecanum Rover Simulation Started\n");
     }
+    filtered_servo_setup(0, 1000, 2000, 45);  // Steering servo (±45 degrees)
+    filtered_servo_setup(2, 1000, 2000, 90);  // Throttle (treated as full range)
+ 
 
     lock_step_scheduled = true;
 }
@@ -152,8 +155,8 @@ void SimRover::update_ackermann_or_skid(const struct sitl_input &input, float de
         steering = motor1 - motor2;
         throttle = 0.5*(motor1 + motor2);
     } else {
-        steering = 2*((input.servos[0]-1000)/1000.0f - 0.5f);
-        throttle = 2*((input.servos[2]-1000)/1000.0f - 0.5f);
+        steering = filtered_servo_angle(input, 0);
+       throttle = 2*((input.servos[2]-1000)/1000.0f - 0.5f);
 
         // vectored thrust conversion
         if (vectored_thrust) {
