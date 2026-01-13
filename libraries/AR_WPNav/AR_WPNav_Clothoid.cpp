@@ -319,7 +319,7 @@ void AR_WPNav_Clothoid::update(float dt)
     _pid_info.P = steering_angle_target;
     _pid_info.D = stanley;
     _pid_info.FF = target_curvature;
-    //_pid_info.target = dTerm;
+    _pid_info.target = (float)ClothoidState::EXIT_SPIRAL;
     _pid_info.actual = -_cross_track_error;
 
 
@@ -356,7 +356,7 @@ void AR_WPNav_Clothoid::update(float dt)
     _desired_lat_accel = _target_curvature * speed * speed;
 
     // if we give a really silly combination of waypoints, this ensures more reasonable behaviour
-    if (fabsf(_cross_track_error) > _turn_radius/2){
+    if (fabsf(_cross_track_error) > _turn_radius/_pos_derivative_gain){
         _clothoid_state = ClothoidState::STRAIGHT;
     }
    
