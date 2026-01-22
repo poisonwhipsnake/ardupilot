@@ -112,6 +112,11 @@ void AR_WPNav_Clothoid::update(float dt)
 
     // get current vehicle heading
     float current_heading = AP::ahrs().get_yaw();
+
+    Vector3f vel_NED;
+    if (AP::ahrs().get_velocity_NED(vel_NED)) {
+        current_heading = atan2f(vel_NED.y, vel_NED.x);
+    }
     Vector2f heading_vec(cosf(current_heading), sinf(current_heading));
 
     // determine which segment we're in and calculate desired speed and curvature
@@ -312,15 +317,15 @@ void AR_WPNav_Clothoid::update(float dt)
     //    local_speed = 0.1f;
     //}
 
-    float crosstrack_band = _angle_gain;
+    //float crosstrack_band = _angle_gain;
     //float ramp = _pos_derivative_gain;
 
     float shaped_angle_error = _angle_error;
 
-    if (fabsf(_cross_track_error) < crosstrack_band){
-        float portion_of_band = fabsf(_cross_track_error)/crosstrack_band;
-        shaped_angle_error = portion_of_band*portion_of_band * _angle_error;
-    }
+    //if (fabsf(_cross_track_error) < crosstrack_band){
+    //    float portion_of_band = fabsf(_cross_track_error)/crosstrack_band;
+    //    shaped_angle_error = portion_of_band * _angle_error;
+    //}
 
     float smoothed_angle_error = ((_d_filter_term * shaped_angle_error) + ((1-_d_filter_term) * _previous_angle_error));
     _previous_angle_error = smoothed_angle_error;
@@ -330,8 +335,10 @@ void AR_WPNav_Clothoid::update(float dt)
 
     float steering_angle_target = smoothed_angle_error - asinf(fmaxf(fminf((_cross_track_error-(sinf(smoothed_angle_error)*_vehicle_length))/_pos_error_gain, 0.99f), -0.99f));
     float stanley = (1/3.05)*tanf(steering_angle_target);
+    
+    
 
-
+  
 
     _pid_info.I = iTerm;
     _pid_info.P = _angle_error;
