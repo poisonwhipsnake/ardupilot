@@ -341,24 +341,14 @@ void AR_WPNav_Clothoid::update(float dt)
     //    local_speed = 0.1f;
     //}
 
-    float deadband = _angle_gain;
-    float ramp = _pos_derivative_gain;
+    float crosstrack_band = _angle_gain;
+    //float ramp = _pos_derivative_gain;
 
     float shaped_angle_error = _angle_error;
-    if (shaped_angle_error < deadband+ramp && shaped_angle_error > -(deadband+ramp)) {//Deadband
-        if (shaped_angle_error < deadband && shaped_angle_error > -deadband)
-        {
-            shaped_angle_error = 0;
-        }
-        else if (shaped_angle_error > 0){
-            float fraction_of_ramp = (shaped_angle_error - deadband)/ ramp;
-            shaped_angle_error = fraction_of_ramp * (ramp + deadband);
-            
-        }
-        else{
-            float fraction_of_ramp = (shaped_angle_error + deadband)/ ramp;
-            shaped_angle_error = fraction_of_ramp * (ramp + deadband);
-        }
+
+    if (fabsf(_cross_track_error) < crosstrack_band){
+        float portion_of_band = fabsf(_cross_track_error)/crosstrack_band;
+        shaped_angle_error = portion_of_band*portion_of_band * _angle_error;
     }
 
     float smoothed_angle_error = ((_d_filter_term * shaped_angle_error) + ((1-_d_filter_term) * _previous_angle_error));
