@@ -78,7 +78,7 @@ const AP_Param::GroupInfo AR_WPNav_Clothoid::var_info[] = {
 
     AP_GROUPINFO("POS_D", 12, AR_WPNav_Clothoid, _pos_derivative_gain, 0.01f),
 
-    AP_GROUPINFO("SPD_COR", 13,  AR_WPNav_Clothoid, _speed_correction_active , -1.0f),
+    AP_GROUPINFO("V_LEN", 13,  AR_WPNav_Clothoid, _vehicle_length , 3.0f),
 
 
 
@@ -341,13 +341,41 @@ void AR_WPNav_Clothoid::update(float dt)
     //    local_speed = 0.1f;
     //}
 
-    float steering_angle_target = _angle_error - asinf(fmaxf(fminf((_cross_track_error)/_pos_error_gain, 0.99f), -0.99f));
+    float deadband = _angle_gain;
+    float ramp = _pos_derivative_gain;
+
+    float shaped_angle_error = _angle_error;
+    if (shaped_angle_error < deadband+ramp && shaped_angle_error > -(deadband+ramp)) {//Deadband
+        if (shaped_angle_error < deadband && shaped_angle_error > -deadband)
+        {
+            shaped_angle_error = 0;
+        }
+        else if (shaped_angle_error > 0){
+            float fraction_of_ramp = (shaped_angle_error - deadband)/ ramp;
+            shaped_angle_error = fraction_of_ramp * (ramp + deadband);
+            
+        }
+        else{
+            float fraction_of_ramp = (shaped_angle_error + deadband)/ ramp;
+            shaped_angle_error = fraction_of_ramp * (ramp + deadband);
+        }
+    }
+
+    float smoothed_angle_error = ((_d_filter_term * shaped_angle_error) + ((1-_d_filter_term) * _previous_angle_error));
+    _previous_angle_error = smoothed_angle_error;
+        
+
+
+
+    float steering_angle_target = smoothed_angle_error - asinf(fmaxf(fminf((_cross_track_error-(sinf(smoothed_angle_error)*_vehicle_length))/_pos_error_gain, 0.99f), -0.99f));
     float stanley = (1/3.05)*tanf(steering_angle_target);
 
+
+
     _pid_info.I = iTerm;
-    _pid_info.P = steering_angle_target;
+    _pid_info.P = _angle_error;
     _pid_info.D = stanley;
-    _pid_info.FF = target_curvature;
+    _pid_info.FF = smoothed_angle_error;
     _pid_info.target = (float)ClothoidState::EXIT_SPIRAL;
     _pid_info.actual = -_cross_track_error;
 
@@ -385,9 +413,9 @@ void AR_WPNav_Clothoid::update(float dt)
     _desired_lat_accel = _target_curvature * speed * speed;
 
     // if we give a really silly combination of waypoints, this ensures more reasonable behaviour
-    if (fabsf(_cross_track_error) > _turn_radius/_pos_derivative_gain){
-        _clothoid_state = ClothoidState::STRAIGHT;
-    }
+    //if (fabsf(_cross_track_error) > _turn_radius/_pos_derivative_gain){
+    //    _clothoid_state = ClothoidState::STRAIGHT;
+    //}
    
 }
 
