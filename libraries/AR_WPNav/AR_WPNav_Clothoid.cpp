@@ -113,10 +113,11 @@ void AR_WPNav_Clothoid::update(float dt)
     // get current vehicle heading
     float current_heading = AP::ahrs().get_yaw();
 
-    Vector3f vel_NED;
-    if (AP::ahrs().get_velocity_NED(vel_NED)) {
-        current_heading = atan2f(vel_NED.y, vel_NED.x);
+    Vector2f vel_NE = AP::ahrs().groundspeed_vector();
+    if (vel_NE.length() > _angle_gain){
+        current_heading = atan2f(vel_NE.y, vel_NE.x);
     }
+
     Vector2f heading_vec(cosf(current_heading), sinf(current_heading));
 
     // determine which segment we're in and calculate desired speed and curvature
@@ -331,7 +332,7 @@ void AR_WPNav_Clothoid::update(float dt)
     _previous_angle_error = smoothed_angle_error;
         
 
-
+    smoothed_angle_error = smoothed_angle_error * _pos_derivative_gain;
 
     float steering_angle_target = smoothed_angle_error - asinf(fmaxf(fminf((_cross_track_error-(sinf(smoothed_angle_error)*_vehicle_length))/_pos_error_gain, 0.99f), -0.99f));
     float stanley = (1/3.05)*tanf(steering_angle_target);
