@@ -74,6 +74,13 @@ const AP_Param::GroupInfo AR_WPNav_Clothoid::var_info[] = {
 
     AP_GROUPINFO("TURN_SPD_MAX", 10, AR_WPNav_Clothoid, _turn_speed_max, 3.0f),
 
+    AP_GROUPINFO("D_FILTER", 11, AR_WPNav_Clothoid, _d_filter_term, 0.1f),
+
+    AP_GROUPINFO("POS_D", 12, AR_WPNav_Clothoid, _pos_derivative_gain, 0.01f),
+
+    AP_GROUPINFO("V_LEN", 13,  AR_WPNav_Clothoid, _vehicle_length , 3.0f),
+
+
 
     AP_GROUPEND
 };
@@ -136,6 +143,12 @@ void AR_WPNav_Clothoid::update(float dt)
 
     // get current vehicle heading
     float current_heading = AP::ahrs().get_yaw();
+
+    Vector2f vel_NE = AP::ahrs().groundspeed_vector();
+    if (vel_NE.length() > _angle_gain){
+        current_heading = atan2f(vel_NE.y, vel_NE.x);
+    }
+
     Vector2f heading_vec(cosf(current_heading), sinf(current_heading));
 
     // determine which segment we're in and calculate curvature
@@ -291,18 +304,86 @@ void AR_WPNav_Clothoid::update(float dt)
         }
     }
 
+
+
+
     if(fabsf(_cross_track_error) < _xtrack_integrator_distance_limit){//} && AP::ahrs().get_velocity_NED().length() > 0.2f) {
+
         _cross_track_integrator += -_cross_track_error * dt;
+    //    if (_speed_correction_active<0){
+    //        
+    //    }
+    //    else{
+    //        _cross_track_integrator += -_cross_track_error * dt* speed;
+    //    }
     }
     else{
         _cross_track_integrator = 0;
     }
+
+
+    //float smoothed_cross_track_error = ((_d_filter_term * _cross_track_error) + ((1-_d_filter_term) * _previous_cross_track_error));
     
-    float target_curvature_control =  (-_cross_track_error*_pos_error_gain) + (_angle_error*_angle_gain) + (_cross_track_integrator*_pos_integrator_gain);
+    
+    //float derivative = (smoothed_cross_track_error - _previous_cross_track_error) / dt;
+
+    //if (_speed_correction_active>2.0f){
+    //    if (speed > 0.2){
+    //        derivative = derivative / speed;
+    //    }
+    //    else{
+    //        derivative = 0;
+    //    }
+    //}
+    //_previous_cross_track_error = smoothed_cross_track_error;
+
+
+    float iTerm = _cross_track_integrator*_pos_integrator_gain;
+    //float pTerm = -_cross_track_error*_pos_error_gain;
+    //float angTerm = _angle_error*_angle_gain;
+    //float dTerm = -derivative*_pos_derivative_gain;
+    //float local_speed = speed;
+    //if (speed< 0.1f) {
+    //    local_speed = 0.1f;
+    //}
+
+    //float crosstrack_band = _angle_gain;
+    //float ramp = _pos_derivative_gain;
+
+    float shaped_angle_error = _angle_error;
+
+    //if (fabsf(_cross_track_error) < crosstrack_band){
+    //    float portion_of_band = fabsf(_cross_track_error)/crosstrack_band;
+    //    shaped_angle_error = portion_of_band * _angle_error;
+    //}
+
+    float smoothed_angle_error = ((_d_filter_term * shaped_angle_error) + ((1-_d_filter_term) * _previous_angle_error));
+    _previous_angle_error = smoothed_angle_error;
+        
+
+    smoothed_angle_error = smoothed_angle_error * _pos_derivative_gain;
+
+    float steering_angle_target = smoothed_angle_error - asinf(fmaxf(fminf((_cross_track_error-(sinf(smoothed_angle_error)*_vehicle_length))/_pos_error_gain, 0.99f), -0.99f));
+    float stanley = (1/3.05)*tanf(steering_angle_target);
+    
+    
+
+  
+
+    _pid_info.I = iTerm;
+    _pid_info.P = _angle_error;
+    _pid_info.D = stanley;
+    _pid_info.FF = smoothed_angle_error;
+    _pid_info.target = (float)ClothoidState::EXIT_SPIRAL;
+    _pid_info.actual = -_cross_track_error;
+
+
+    
+    float target_curvature_control =  stanley + iTerm;
     
 
 
-    if ((_cross_track_error < 0 && _angle_error < -0.1) || (_cross_track_error > 0 && _angle_error > 0.1)){
+    /*if ((_cross_track_error < 0 && _angle_error < -0.1) || (_cross_track_error > 0 && _angle_error > 0.1)){
 
         float cross_track_factor = (M_PI_4 - (fabsf(_angle_error)-0.1))/M_PI_4;
         if ((fabsf(_angle_error)-0.1) > M_PI_4){
@@ -310,28 +391,30 @@ void AR_WPNav_Clothoid::update(float dt)
         }
         target_curvature_control = (cross_track_factor*(-_cross_track_error*_pos_error_gain) )+ (_angle_error*_angle_gain);
         
-    }
+    }*/
 
     target_curvature += target_curvature_control;
-
+    /*
     if (target_curvature > 2.0f / _turn_radius) {
         target_curvature = 2.0f / _turn_radius;
     } else if (target_curvature < -2.0f / _turn_radius) {
         target_curvature = -2.0f / _turn_radius;
-    }
+    }*/
 
     // apply desired speed and store target curvature
     update_speed(dt);
     _target_curvature = target_curvature;
+    _pid_info.slew_rate = target_curvature;
     
     // For compatibility with parent class, calculate turn rate and lateral acceleration
     _desired_turn_rate_rads = _target_curvature * speed;
     _desired_lat_accel = _target_curvature * speed * speed;
 
     // if we give a really silly combination of waypoints, this ensures more reasonable behaviour
-    if (fabsf(_cross_track_error) > _turn_radius/2){
-        _clothoid_state = ClothoidState::STRAIGHT;
-    }
+    //if (fabsf(_cross_track_error) > _turn_radius/_pos_derivative_gain){
+    //    _clothoid_state = ClothoidState::STRAIGHT;
+    //}
+   
 }
 
 // calculate the crosstrack error
