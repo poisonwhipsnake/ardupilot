@@ -352,6 +352,8 @@ void AR_WPNav_Clothoid::update(float dt)
 
     float shaped_angle_error = _angle_error;
 
+    shaped_angle_error = fmaxf(fminf(shaped_angle_error, M_PI_2), -M_PI_2);
+
     //if (fabsf(_cross_track_error) < crosstrack_band){
     //    float portion_of_band = fabsf(_cross_track_error)/crosstrack_band;
     //    shaped_angle_error = portion_of_band * _angle_error;
@@ -363,23 +365,21 @@ void AR_WPNav_Clothoid::update(float dt)
 
     smoothed_angle_error = smoothed_angle_error * _pos_derivative_gain;
 
-    float steering_angle_target = smoothed_angle_error - asinf(fmaxf(fminf((_cross_track_error-(sinf(smoothed_angle_error)*_vehicle_length))/_pos_error_gain, 0.99f), -0.99f));
-    float stanley = (1/3.05)*tanf(steering_angle_target);
+    float steering_angle_target = smoothed_angle_error - asinf(fmaxf(fminf((_cross_track_error)/_pos_error_gain, 0.99f), -0.99f));
+    steering_angle_target = fmaxf(fminf(steering_angle_target, M_PI_2*0.8), -M_PI_2*0.8);
+    float stanley = (1/_vehicle_length)*tanf(steering_angle_target);
     
     
 
-  
+    float target_curvature_control =  stanley + iTerm;
 
-    _pid_info.I = iTerm;
+     _pid_info.I = iTerm;
     _pid_info.P = _angle_error;
     _pid_info.D = stanley;
     _pid_info.FF = smoothed_angle_error;
-    _pid_info.target = (float)ClothoidState::EXIT_SPIRAL;
-    _pid_info.actual = -_cross_track_error;
-
-
     
-    float target_curvature_control =  stanley + iTerm;
+    _pid_info.actual = -_cross_track_error;
+    _pid_info.target = target_curvature_control;
     
 
 
