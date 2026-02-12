@@ -145,7 +145,8 @@ void AR_WPNav_Clothoid::update(float dt)
     float current_heading = AP::ahrs().get_yaw();
 
     Vector2f vel_NE = AP::ahrs().groundspeed_vector();
-    if (vel_NE.length() > _angle_gain){
+    float groundspeed = vel_NE.length();
+    if (groundspeed > _angle_gain){
         current_heading = atan2f(vel_NE.y, vel_NE.x);
     }
 
@@ -156,8 +157,6 @@ void AR_WPNav_Clothoid::update(float dt)
 
     switch (_clothoid_state) {
         case ClothoidState::ENTRY_SPIRAL: {
-            // calculate heading change from start of entry spiral
-            float heading_change = wrap_PI(current_heading - current_turn.entry_spiral_heading);
 
             float step_distance = current_loc.get_distance(_prev_location);
 
@@ -194,8 +193,19 @@ void AR_WPNav_Clothoid::update(float dt)
             _cross_track_error = -(heading_vec % error_vec);
             _angle_error = wrap_PI(target_heading - current_heading);
 
+            Vector2f  start_point_from_spiral_end =  current_turn.constant_turn_start.get_distance_NE(current_turn.turn_centre);
+            start_point_from_spiral_end.rotate(M_PI_2);
+            if (current_turn.total_turn_angle < 0) {
+                start_point_from_spiral_end = start_point_from_spiral_end * -1;
+            }
+
+            Location start_point = current_turn.constant_turn_start;
+            start_point.offset(start_point_from_spiral_end.x, start_point_from_spiral_end.y);
+
+            
+
             // transition to constant turn if we've reached the entry spiral heading change
-            if (fabsf(heading_change) >= fabsf(current_turn.entry_angle)) {
+            if (current_loc.past_interval_finish_line(start_point, current_turn.constant_turn_start)) {
                 _clothoid_state = ClothoidState::CONSTANT_TURN;
                 distance_along_segment = 0;
             }
@@ -208,9 +218,6 @@ void AR_WPNav_Clothoid::update(float dt)
             if (current_turn.total_turn_angle < 0) {
                 target_curvature = -target_curvature;
             }
-            
-            // calculate heading change from start of constant turn
-            float heading_change = wrap_PI(current_heading - current_turn.constant_turn_heading);
             
             _prev_location = current_loc;
             
@@ -232,16 +239,20 @@ void AR_WPNav_Clothoid::update(float dt)
                 _angle_error = wrap_PI(bearing_from_centre + M_PI_2 - current_heading);
             }
           
-            // transition to exit spiral when we've completed the constant turn portion
-            if (fabsf(heading_change) >= fabsf(current_turn.fixed_rate_angle)) {
-                _clothoid_state = ClothoidState::EXIT_SPIRAL;
-                distance_along_segment = heading_vec * current_turn.exit_spiral_start.get_distance_NE(current_loc);
-
-                //set a reasonable minimum distance along segment
-                if (distance_along_segment < -_turn_radius/5) {
-                    distance_along_segment = -_turn_radius/5;
-                }
+            Vector2f  start_point_from_constant_end =  current_turn.exit_spiral_start.get_distance_NE(current_turn.turn_centre);
+            start_point_from_constant_end.rotate(M_PI_2);
+            if (current_turn.total_turn_angle < 0) {
+                start_point_from_constant_end = start_point_from_constant_end * -1;
             }
+
+            Location start_point = current_turn.exit_spiral_start;
+            start_point.offset(start_point_from_constant_end.x, start_point_from_constant_end.y);
+
+            if (current_loc.past_interval_finish_line(start_point, current_turn.exit_spiral_start)) {
+                _clothoid_state = ClothoidState::EXIT_SPIRAL;
+                distance_along_segment = 0;
+            }
+
             break;
         }
         
@@ -288,7 +299,12 @@ void AR_WPNav_Clothoid::update(float dt)
             _angle_error = wrap_PI(target_heading - current_heading);
 
             // transition to straight when we've completed the exit spiral
-            if (distance_to_go < 0.1f) {
+            Vector2f target_vector = -_prev_wp.get_distance_NE(_curr_wp);
+            Location start_point = current_turn.exit_spiral_end;
+            start_point.offset(target_vector.x, target_vector.y);
+
+
+            if (current_loc.past_interval_finish_line(start_point, current_turn.exit_spiral_end)) {
                 _clothoid_state = ClothoidState::STRAIGHT;
             }
             break;
@@ -307,69 +323,29 @@ void AR_WPNav_Clothoid::update(float dt)
 
 
 
-    if(fabsf(_cross_track_error) < _xtrack_integrator_distance_limit){//} && AP::ahrs().get_velocity_NED().length() > 0.2f) {
+    if(fabsf(_cross_track_error) < _xtrack_integrator_distance_limit && groundspeed > 0.1f){
 
         _cross_track_integrator += -_cross_track_error * dt;
-    //    if (_speed_correction_active<0){
-    //        
-    //    }
-    //    else{
-    //        _cross_track_integrator += -_cross_track_error * dt* speed;
-    //    }
     }
     else{
         _cross_track_integrator = 0;
     }
 
 
-    //float smoothed_cross_track_error = ((_d_filter_term * _cross_track_error) + ((1-_d_filter_term) * _previous_cross_track_error));
-    
-    
-    //float derivative = (smoothed_cross_track_error - _previous_cross_track_error) / dt;
-
-    //if (_speed_correction_active>2.0f){
-    //    if (speed > 0.2){
-    //        derivative = derivative / speed;
-    //    }
-    //    else{
-    //        derivative = 0;
-    //    }
-    //}
-    //_previous_cross_track_error = smoothed_cross_track_error;
-
-
     float iTerm = _cross_track_integrator*_pos_integrator_gain;
-    //float pTerm = -_cross_track_error*_pos_error_gain;
-    //float angTerm = _angle_error*_angle_gain;
-    //float dTerm = -derivative*_pos_derivative_gain;
-    //float local_speed = speed;
-    //if (speed< 0.1f) {
-    //    local_speed = 0.1f;
-    //}
-
-    //float crosstrack_band = _angle_gain;
-    //float ramp = _pos_derivative_gain;
 
     float shaped_angle_error = _angle_error;
 
     shaped_angle_error = fmaxf(fminf(shaped_angle_error, M_PI_2), -M_PI_2);
 
-    //if (fabsf(_cross_track_error) < crosstrack_band){
-    //    float portion_of_band = fabsf(_cross_track_error)/crosstrack_band;
-    //    shaped_angle_error = portion_of_band * _angle_error;
-    //}
-
     float smoothed_angle_error = ((_d_filter_term * shaped_angle_error) + ((1-_d_filter_term) * _previous_angle_error));
     _previous_angle_error = smoothed_angle_error;
         
-
     smoothed_angle_error = smoothed_angle_error * _pos_derivative_gain;
 
     float steering_angle_target = smoothed_angle_error - asinf(fmaxf(fminf((_cross_track_error)/_pos_error_gain, 0.99f), -0.99f));
     steering_angle_target = fmaxf(fminf(steering_angle_target, M_PI_2*0.8), -M_PI_2*0.8);
     float stanley = (1/_vehicle_length)*tanf(steering_angle_target);
-    
-    
 
     float target_curvature_control =  stanley + iTerm;
 
@@ -381,25 +357,13 @@ void AR_WPNav_Clothoid::update(float dt)
     _pid_info.actual = -_cross_track_error;
     _pid_info.target = target_curvature_control;
     
-
-
-    /*if ((_cross_track_error < 0 && _angle_error < -0.1) || (_cross_track_error > 0 && _angle_error > 0.1)){
-
-        float cross_track_factor = (M_PI_4 - (fabsf(_angle_error)-0.1))/M_PI_4;
-        if ((fabsf(_angle_error)-0.1) > M_PI_4){
-            cross_track_factor = 0;
-        }
-        target_curvature_control = (cross_track_factor*(-_cross_track_error*_pos_error_gain) )+ (_angle_error*_angle_gain);
-        
-    }*/
-
     target_curvature += target_curvature_control;
-    /*
+    
     if (target_curvature > 2.0f / _turn_radius) {
         target_curvature = 2.0f / _turn_radius;
     } else if (target_curvature < -2.0f / _turn_radius) {
         target_curvature = -2.0f / _turn_radius;
-    }*/
+    }
 
     // apply desired speed and store target curvature
     update_speed(dt);
@@ -410,10 +374,6 @@ void AR_WPNav_Clothoid::update(float dt)
     _desired_turn_rate_rads = _target_curvature * speed;
     _desired_lat_accel = _target_curvature * speed * speed;
 
-    // if we give a really silly combination of waypoints, this ensures more reasonable behaviour
-    //if (fabsf(_cross_track_error) > _turn_radius/_pos_derivative_gain){
-    //    _clothoid_state = ClothoidState::STRAIGHT;
-    //}
    
 }
 
