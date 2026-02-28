@@ -343,7 +343,7 @@ void AR_WPNav_Clothoid::update(float dt)
         
     smoothed_angle_error = smoothed_angle_error * _pos_derivative_gain;
 
-    float steering_angle_target = smoothed_angle_error - asinf(fmaxf(fminf((_cross_track_error)/_pos_error_gain, 0.99f), -0.99f));
+    float steering_angle_target = smoothed_angle_error - asinf(fmaxf(fminf((_cross_track_error)/_pos_error_gain, 0.35f), -0.35f));
     steering_angle_target = fmaxf(fminf(steering_angle_target, M_PI_2*0.8), -M_PI_2*0.8);
     float stanley = (1/_vehicle_length)*tanf(steering_angle_target);
 
