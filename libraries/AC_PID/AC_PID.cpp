@@ -249,7 +249,8 @@ float AC_PID::update_all(float target, float measurement, float dt, bool limit, 
         if (is_positive(dt)) {
             float derivative = (_error - error_last) / dt;
             _derivative += get_filt_D_alpha(dt) * (derivative - _derivative);
-            _target_derivative = (_target - target_last) / dt;
+            float target_derivative = (_target - target_last) / dt;
+            _target_derivative += get_filt_D_alpha(dt) * (target_derivative - _target_derivative);
         }
     }
 
