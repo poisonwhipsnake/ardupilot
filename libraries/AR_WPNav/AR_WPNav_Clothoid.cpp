@@ -146,9 +146,7 @@ void AR_WPNav_Clothoid::update(float dt)
 
     Vector2f vel_NE = AP::ahrs().groundspeed_vector();
     float groundspeed = vel_NE.length();
-    if (groundspeed > _angle_gain){
-        current_heading = atan2f(vel_NE.y, vel_NE.x);
-    }
+
 
     Vector2f heading_vec(cosf(current_heading), sinf(current_heading));
 
@@ -331,28 +329,39 @@ void AR_WPNav_Clothoid::update(float dt)
         _cross_track_integrator = 0;
     }
 
+    float cross_track_rate = (_cross_track_error - _previous_cross_track_error)/dt;
+    _previous_cross_track_error = _cross_track_error;
+
+    float dTerm = cross_track_rate * _pos_derivative_gain;
+
+    float smoothed_dTerm = (_d_filter_term * dTerm) + ((1-_d_filter_term) * _previous_dterm);
+
+    _previous_dterm = dTerm;
+
+
+
 
     float iTerm = _cross_track_integrator*_pos_integrator_gain;
 
     float shaped_angle_error = _angle_error;
 
     shaped_angle_error = fmaxf(fminf(shaped_angle_error, M_PI_2), -M_PI_2);
-
-    float smoothed_angle_error = ((_d_filter_term * shaped_angle_error) + ((1-_d_filter_term) * _previous_angle_error));
-    _previous_angle_error = smoothed_angle_error;
         
-    smoothed_angle_error = smoothed_angle_error * _pos_derivative_gain;
+    shaped_angle_error = shaped_angle_error * _angle_gain;
 
-    float steering_angle_target = smoothed_angle_error - asinf(fmaxf(fminf((_cross_track_error)/_pos_error_gain, 0.35f), -0.35f));
+
+
+    float steering_angle_target = shaped_angle_error - asinf(fmaxf(fminf((_cross_track_error)/_pos_error_gain, 0.35f), -0.35f));
     steering_angle_target = fmaxf(fminf(steering_angle_target, M_PI_2*0.8), -M_PI_2*0.8);
+    steering_angle_target = steering_angle_target + smoothed_dTerm;
     float stanley = (1/_vehicle_length)*tanf(steering_angle_target);
 
     float target_curvature_control =  stanley + iTerm;
 
      _pid_info.I = iTerm;
     _pid_info.P = _angle_error;
-    _pid_info.D = stanley;
-    _pid_info.FF = smoothed_angle_error;
+    _pid_info.D = smoothed_dTerm;
+    _pid_info.FF = stanley;
     
     _pid_info.actual = -_cross_track_error;
     _pid_info.target = target_curvature_control;
