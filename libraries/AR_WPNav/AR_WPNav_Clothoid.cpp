@@ -80,7 +80,7 @@ const AP_Param::GroupInfo AR_WPNav_Clothoid::var_info[] = {
 
     AP_GROUPINFO("V_LEN", 13,  AR_WPNav_Clothoid, _vehicle_length , 3.0f),
 
-
+    AP_GROUPINFO("STAN_V", 14, AR_WPNav_Clothoid, _stanley_velocity_gain, 0.5f),
 
     AP_GROUPEND
 };
@@ -343,7 +343,7 @@ void AR_WPNav_Clothoid::update(float dt)
         
     smoothed_angle_error = smoothed_angle_error * _pos_derivative_gain;
 
-    float steering_angle_target = smoothed_angle_error - asinf(fmaxf(fminf((_cross_track_error)/_pos_error_gain, 0.99f), -0.99f));
+    float steering_angle_target = smoothed_angle_error - atanf(_cross_track_error*_pos_error_gain/(groundspeed + _stanley_velocity_gain));
     steering_angle_target = fmaxf(fminf(steering_angle_target, M_PI_2*0.8), -M_PI_2*0.8);
     float stanley = (1/_vehicle_length)*tanf(steering_angle_target);
 

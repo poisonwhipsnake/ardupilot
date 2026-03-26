@@ -161,4 +161,5 @@ private:
     AP_Float _slow_angle;              // minimum angle for a turn at which we slow down in degrees
     AP_Float _turn_speed_max;          // maximum turn speed in m/s
     AP_Float _d_filter_term;            // low-pass filter term
+    AP_Float _stanley_velocity_gain;
 }; 
