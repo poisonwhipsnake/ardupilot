@@ -767,7 +767,7 @@ float AR_AttitudeControl::get_steering_out_rate(float desired_target, bool motor
         }
     }
 
-    if (_steering_valve_mode == 2){
+    else if (_steering_valve_mode == 2){
         // use the desired turn rate to calculate the steering angle
         output = _steer_rate_pid.update_all(target_curvature, _measured_steering_angle, dt, (motor_limit_left || motor_limit_right));
         output += _steer_rate_pid.get_ff();
