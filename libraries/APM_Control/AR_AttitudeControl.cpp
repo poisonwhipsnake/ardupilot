@@ -761,7 +761,7 @@ float AR_AttitudeControl::get_steering_out_rate(float desired_target, bool motor
         
         output = _steer_rate_pid.update_all(_desired_steering_angle, _measured_steering_angle , dt, (motor_limit_left || motor_limit_right));
         output += _steer_rate_pid.get_ff();
-        if (now - _last_steering_measurement > 100){
+        if (now - _last_steering_measurement > 1000){
             //show mavlink message
             output = 0;
         }
@@ -771,7 +771,7 @@ float AR_AttitudeControl::get_steering_out_rate(float desired_target, bool motor
         // use the desired turn rate to calculate the steering angle
         output = _steer_rate_pid.update_all(target_curvature, _measured_steering_angle, dt, (motor_limit_left || motor_limit_right));
         output += _steer_rate_pid.get_ff();
-        if (now - _last_steering_measurement > 100){
+        if (now - _last_steering_measurement > 1000){
             //show mavlink message
             output = 0;
         }
