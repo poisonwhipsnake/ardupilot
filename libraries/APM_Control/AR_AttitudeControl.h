@@ -155,6 +155,7 @@ private:
     AP_Float _wheelbase;            // wheelbase in meters
     AP_Float _max_wheel_angle;      // maximum wheel angle in degrees
     AP_Int8  _steering_valve_mode; // steering valve mode (0 = normal, 1 = vale_mode)
+    AP_Float _iterm_curvature_rate_limit; // curvature target rate above which the  i term does not update
 
 
     AP_Float _throttle_accel_max;   // speed/throttle control acceleration (and deceleration) maximum in m/s/s.  0 to disable limits
@@ -174,6 +175,8 @@ private:
     bool     _steering_limit_left;  // true when the steering control has reached its left limit (e.g. motor has reached limits or accel or turn rate limits applied)
     bool     _steering_limit_right; // true when the steering control has reached its right limit (e.g. motor has reached limits or accel or turn rate limits applied)
     float    _measured_steering_angle;
+    float    _previous_curvature_target;
+    float    _smoothed_curvature_target;
     uint32_t _last_steering_measurement;
 
 

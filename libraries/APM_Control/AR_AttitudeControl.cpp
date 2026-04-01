@@ -570,6 +570,8 @@ const AP_Param::GroupInfo AR_AttitudeControl::var_info[] = {
     AP_GROUPINFO("_MAX_ANGLE", 17, AR_AttitudeControl, _max_wheel_angle, 45.0f),
 
     AP_GROUPINFO("_STR_VALVE", 18, AR_AttitudeControl, _steering_valve_mode, 0),
+
+    AP_GROUPINFO("_CURVE_MAX_I", 19, AR_AttitudeControl, _iterm_curvature_rate_limit, 0.01f),
     
     AP_GROUPEND
 };
@@ -769,7 +771,16 @@ float AR_AttitudeControl::get_steering_out_rate(float desired_target, bool motor
 
     else if (_steering_valve_mode == 2){
         // use the desired turn rate to calculate the steering angle
-        output = _steer_rate_pid.update_all(target_curvature, _measured_steering_angle, dt, (motor_limit_left || motor_limit_right));
+        _smoothed_curvature_target = (0.1*(target_curvature - _previous_curvature_target)) + (0.9*_smoothed_curvature_target);
+        _previous_curvature_target = target_curvature;
+
+        bool itermBlock = false;
+
+        if (fabsf(_smoothed_curvature_target) > _iterm_curvature_rate_limit) {
+            itermBlock = true;
+        }
+
+        output = _steer_rate_pid.update_all(target_curvature, _measured_steering_angle, dt,itermBlock);
         output += _steer_rate_pid.get_ff();
         if (now - _last_steering_measurement > 1000){
             //show mavlink message
