@@ -766,6 +766,16 @@ float AR_AttitudeControl::get_steering_out_rate(float desired_target, bool motor
             output = 0;
         }
     }
+
+    if (_steering_valve_mode == 2){
+        // use the desired turn rate to calculate the steering angle
+        output = _steer_rate_pid.update_all(target_curvature, _measured_steering_angle, dt, (motor_limit_left || motor_limit_right));
+        output += _steer_rate_pid.get_ff();
+        if (now - _last_steering_measurement > 100){
+            //show mavlink message
+            output = 0;
+        }
+    }
     else {
         
         // use the desired turn rate to calculate the steering angle
@@ -777,7 +787,6 @@ float AR_AttitudeControl::get_steering_out_rate(float desired_target, bool motor
 
     output = constrain_float(output, -1,1);
 
-    float estimated_steering_angle = 0;
     float estimated_curvature = 0;
     float speed;
     if (get_forward_speed(speed)) {
@@ -785,21 +794,18 @@ float AR_AttitudeControl::get_steering_out_rate(float desired_target, bool motor
             
            float yaw_rate = AP::ahrs().get_yaw_rate_earth();
            estimated_curvature = yaw_rate / speed; // in radians per meter
-           float estimated_steering_angle_rad = atanf(yaw_rate * _wheelbase / speed);
-           // Optionally convert to degrees:
-           estimated_steering_angle = degrees(estimated_steering_angle_rad);
         }
     }
 
     #if HAL_LOGGING_ENABLED
         
-        AP::logger().WriteStreaming("STR", "TimeUS,TC,TSA,Out,EC,EA", "Qfffff",
+        AP::logger().WriteStreaming("STR", "TimeUS,TC,TSA,Out,EC,MC", "Qfffff",
                                         AP_HAL::micros64(),
                                         target_curvature,
                                         _desired_steering_angle,
                                         output,
                                         estimated_curvature,
-                                        estimated_steering_angle
+                                        _measured_steering_angle
                                         );
         
 
