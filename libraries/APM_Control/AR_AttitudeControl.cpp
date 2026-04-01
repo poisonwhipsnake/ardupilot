@@ -780,6 +780,11 @@ float AR_AttitudeControl::get_steering_out_rate(float desired_target, bool motor
             itermBlock = true;
         }
 
+
+        if (!hal.util->get_soft_armed()){
+            itermBlock = true;
+        }
+
         output = _steer_rate_pid.update_all(target_curvature, _measured_steering_angle, dt,itermBlock);
         output += _steer_rate_pid.get_ff();
         if (now - _last_steering_measurement > 1000){
