@@ -771,7 +771,7 @@ float AR_AttitudeControl::get_steering_out_rate(float desired_target, bool motor
 
     else if (_steering_valve_mode == 2){
         // use the desired turn rate to calculate the steering angle
-        _smoothed_curvature_target = (0.1*(target_curvature - _previous_curvature_target)) + (0.9*_smoothed_curvature_target);
+        _smoothed_curvature_target = (0.1*((target_curvature - _previous_curvature_target)/dt)) + (0.9*_smoothed_curvature_target);
         _previous_curvature_target = target_curvature;
 
         bool itermBlock = false;
